@@ -1,7 +1,11 @@
 import time
-#from timer import Timer
+import sys 
 import numpy as np
 from opt_einsum import contract
+sys.path.append("/Users/josemarcmadriaga/miniconda3/envs/pycc/lib//python3.8/site-packages/")
+from timer import timer
+#import numpy as np
+#from opt_einsum import contract
 
 
 class lccwfn(object):
@@ -97,17 +101,17 @@ class lccwfn(object):
         lcc_tstart = time.time()
 
         #initialize variables for timing each function
-        #self.fae_t = Timer("Fae")
+        self.fae_t = 0 
         #self.fme_t = Timer("Fme")
         #self.fmi_t = Timer("Fmi")
         #self.wmnij_t = Timer("Wmnij")
-        #self.zmbij_t = Timer("Zmbij")
-        #self.wmbej_t = Timer("Wmbej")
-        #self.wmbje_t = Timer("Wmbje")
-        #self.tau_t = Timer("tau")
-        #self.r1_t = Timer("r1")
-        #self.r2_t = Timer("r2")
-        #self.energy_t = Timer("energy")
+        #self.zmbij_t = 
+        #self.wmbej_t = 0
+        #self.wmbje_t = 0
+        #self.tau_t = 0
+        #self.r1_t = 0
+        #self.r2_t = 0 
+        #self.energy_t = 0 
 
         #ldiis = helper_ldiis(self.t1, self.t2, max_diis)
 
@@ -153,7 +157,8 @@ class lccwfn(object):
                 print("E(%s) = %20.15f" % (self.local + "-" + self.model, elcc))
                 print("E(TOT)  = %20.15f" % (elcc + self.eref))
                 self.elcc = elcc
-                #print(Timer.timers)
+                print('Time table')
+                print("Fae = %.6f" % self.fae_t)
                 return elcc
       
             #ldiis.add_error_vector(self.t1,self.t2)
@@ -199,7 +204,7 @@ class lccwfn(object):
         return r1, r2   
 
     def build_Fae(self, Fae_ij, L, Fvv, Fov, Sijmm, Sijmn, t1, t2):
-        #self.fae_t.start()
+        fae_start = time.time()
         o = self.o
         v = self.v
         QL = self.QL
@@ -255,7 +260,8 @@ class lccwfn(object):
                         Fae -= 0.5 *contract('a,F,eF->ae', tmp, t1[n], tmp4)
 
                 Fae_ij.append(Fae)
-        #self.fae_t.stop()
+        fae_end = time.time()
+        self.fae_t = fae_end - fae_start
         return Fae_ij
 
     def build_Fmi(self, o, F, L, Fov, Looov, Loovv, t1, t2):

@@ -69,7 +69,7 @@ class Local(object):
         self.no = no
         self.nv = nv
         self.H = H
-        self.C = C.to_array()
+        self.C = np.asarray(C) #.to_array()
         self.local = local
         self.it2_opt = it2_opt
         self.core_cut = core_cut
@@ -549,7 +549,7 @@ class Local(object):
         emp2 = contract('ijab,ijab->', t2, L[o,o,v,v])
         print("MP2 Iter %3d: MP2 Ecorr = %.15f  dE = % .5E" % (0, emp2, -emp2))
         
-        maxiter = 200
+        maxiter = 1000
         ediff = emp2
         rmsd = 0.0
         niter = 0
@@ -748,7 +748,7 @@ class Local(object):
         no = self.no
         nv = self.nv
         dim = self.dim
-
+   
         t1 = np.zeros((no,nv))
         for i in range(no):
             ii = i * no + i
@@ -815,10 +815,10 @@ class Local(object):
 
         trans_intstart = time.time()
 
-        #Initializing the transformation matrices
+        #Initializing the transformation matrices 
         Q = self.Q
         L = self.L
-        
+ 
         QL = []
         Fov = []
         Fvv = []

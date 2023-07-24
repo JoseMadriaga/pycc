@@ -10,11 +10,12 @@ import psi4
 import time
 import numpy as np
 import torch
-from .utils import helper_diis, cc_contract
-from .hamiltonian import Hamiltonian
-from .local import Local
-from .cctriples import t_tjl, t3c_ijk, t3d_ijk, t3c_abc, t3d_abc
-from .lccwfn import lccwfn
+from utils import helper_diis, cc_contract
+from hamiltonian import Hamiltonian
+from local import Local
+from cctriples import t_tjl, t3c_ijk, t3d_ijk, t3c_abc, t3d_abc
+from lccwfn import lccwfn
+import h5py
 
 class ccwfn(object):
     """
@@ -115,6 +116,20 @@ class ccwfn(object):
             raise Exception("%s is not an allowed local filter." % (filter))
         self.filter = filter
 
+        valid_prop = [None,'Dipole','Dipole-FF']
+        #TODO: case-protect this kwarg
+        prop = kwargs.pop('prop', None)
+        if prop not in valid_prop: 
+            raise Exception("%s is not an allowed property." % (prop)) 
+        self.prop = prop
+
+        valid_flag = [None,'QL']
+        #TODO; case-protect this kwarg
+        flag = kwargs.pop('flag', None)
+        if flag not in valid_flag:
+            raise Exception("%s is not an allowed property." % (prop))
+        self.flag = flag
+
         self.ref = scf_wfn
         self.eref = self.ref.energy()
         self.nfzc = self.ref.frzcpi()[0]                # assumes symmetry c1
@@ -127,6 +142,7 @@ class ccwfn(object):
 
         # orbital subspaces
         self.o = slice(0, self.no)
+        print(self.o)
         self.v = slice(self.no, self.nmo)
 
         # For convenience
@@ -148,8 +164,43 @@ class ccwfn(object):
             C = psi4.core.Matrix.from_array(npC)
             self.C = C
 
-        self.H = Hamiltonian(self.ref, self.C, self.C, self.C, self.C)
+        if flag is not None and local is not None:
+            print("Obtaining Q and L") 
+            self.H = Hamiltonian(self.ref, self.C, self.C, self.C, self.C, 'MO')
+            print("unperturbed Fock matrix", self.H.F) 
+            self.Local = Local(local, self.C, self.nfzc, self.no, self.nv, self.H, self.local_cutoff,self.it2_opt)
+            print("unperturbed eps", self.Local.eps[0])
+            mints = psi4.core.MintsHelper(self.ref)
+            dipole = mints.ao_dipole()
+            pert = -1e-5
+            dipole[2].scale(-pert) # dipole_z perturbation
+            Perturb_matrix = self.ref.Fa()
+            Perturb_matrix.add(dipole[2])
 
+            #redundant
+            #C_occ = self.ref.Ca_subset("AO", "ACTIVE_OCC")
+            #LMOS = psi4.core.Localizer.build(self.local_MOs, self.ref.basisset(), C_occ)
+            #LMOS.localize()
+            #npL = np.asarray(LMOS.L)
+            #npC[:,:self.no] = npL
+            #C = psi4.core.Matrix.from_array(npC)
+            #self.C = C
+
+            self.H = Hamiltonian(self.ref, self.C, self.C, self.C, self.C, 'MO')
+            print("perturbed Fock matrix",self.H.F)   
+
+            #self.Local.eps = []
+            #self.Local.L = []
+            #for ij in range(self.no*self.no): 
+                #F = self.Local.Q[ij].T @ self.H.F[v,v] @ self.Local.Q[ij] 
+                #eval, evec = np.linalg.eigh(F)
+                #self.Local.L.append(evec) 
+                #self.Local.eps.append(eval)
+            #print("perturbed eps", self.Local.eps[0])
+        else:
+            self.H = Hamiltonian(self.ref, self.C, self.C, self.C, self.C, 'MO') 
+
+        #Turning this off
         if local is not None:
             self.Local = Local(local, self.C, self.nfzc, self.no, self.nv, self.H, self.local_cutoff,self.it2_opt)
             if filter is not True:
@@ -271,6 +322,7 @@ class ccwfn(object):
             r1, r2 = self.residuals(F, self.t1, self.t2)
 
             if self.local is not None:
+                #print("Going into the simulation code")
                 inc1, inc2 = self.Local.filter_amps(r1, r2)
                 self.t1 += inc1
                 self.t2 += inc2

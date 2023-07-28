@@ -4,7 +4,8 @@ if __name__ == "__main__":
 
 import psi4
 import numpy as np
-
+import h5py
+from opt_einsum import contract
 
 class Hamiltonian(object):
     """
@@ -23,53 +24,68 @@ class Hamiltonian(object):
     m : NumPy array
         MO-basis magnetic dipole integrals
     """
-    def __init__(self, ref, Cp, Cr, Cq, Cs):
+    def __init__(self, ref, Cp, Cr, Cq, Cs, option):
+         
+        if option is 'AO':
+            print("Accessing data from hd5f filke")   
+            npCp = np.asarray(Cp)
+            npCr = np.asarray(Cr)    
+            npCq = np.asarray(Cq)
+            npCs = np.asarray(Cs)
+            f = h5py.File('ref_AO.hdf5','r')
+            self.F = np.asarray(f['F'])
+            self.F = npCp.T @ self.F @ npCr 
+         
+            self.ERI = np.asarray(f['ERI'])
+            self.ERI = contract('aA,bB,cC,dD,abcd->ABCD',npCp, npCr,npCq,npCs,self.ERI).swapaxes(1,2)
+            self.L = 2.0 * self.ERI - self.ERI.swapaxes(2,3) 
+        else:  
+            npCp = np.asarray(Cp)
+            npCr = np.asarray(Cr)
+           
+            # Generate MO Fock matrix
+            self.F = np.asarray(ref.Fa())
+            self.F = npCp.T @ self.F @ npCr
+   
+            # Get MO two-electron integrals in Dirac notation
+            mints = psi4.core.MintsHelper(ref.basisset())
+            self.ERI = np.asarray(mints.mo_eri(Cp, Cr, Cq, Cs))  # (pr|qs)
+            self.ERI = self.ERI.swapaxes(1,2)                    # <pq|rs>
+            self.L = 2.0 * self.ERI - self.ERI.swapaxes(2,3)     # 2 <pq|rs> - <pq|sr>
 
-        npCp = np.asarray(Cp)
-        npCr = np.asarray(Cr)
+            self.mol = ref.molecule()
+            self.basisset = ref.basisset()
+            self.C_all = ref.Ca().to_array() # includes frozen core
+            self.F_ao = ref.Fa().to_array()
 
-        # Generate MO Fock matrix
-        self.F = np.asarray(ref.Fa())
-        self.F = npCp.T @ self.F @ npCr
+            ## One-electron property integrals
 
-        # Get MO two-electron integrals in Dirac notation
-        mints = psi4.core.MintsHelper(ref.basisset())
-        self.ERI = np.asarray(mints.mo_eri(Cp, Cr, Cq, Cs))  # (pr|qs)
-        self.ERI = self.ERI.swapaxes(1,2)                    # <pq|rs>
-        self.L = 2.0 * self.ERI - self.ERI.swapaxes(2,3)     # 2 <pq|rs> - <pq|sr>
+            # Electric dipole integrals (length): -e r
+            dipole_ints = mints.ao_dipole()
+            #print("psi4", np.asarray(dipole_ints[1]))
+            self.mu = []
+            for axis in range(3):
+                self.mu.append(npCp.T @ np.asarray(dipole_ints[axis]) @ npCr)
+            #print("pycc", self.mu[1])
+            # Magnetic dipole integrals: -(e/2 m_e) L
+            m_ints = mints.ao_angular_momentum()
+            self.m = []
+            for axis in range(3):
+                m = (npCp.T @ (np.asarray(m_ints[axis])*-0.5) @ npCr)
+                self.m.append(m*1.0j)
 
-        self.mol = ref.molecule()
-        self.basisset = ref.basisset()
-        self.C_all = ref.Ca().to_array() # includes frozen core
-        self.F_ao = ref.Fa().to_array()
+            # Linear momentum integrals: (-e) (-i hbar) Del
+            p_ints = mints.ao_nabla()
+            self.p = []
+            for axis in range(3):
+                p = (npCp.T @ np.asarray(p_ints[axis]) @ npCr)
+                self.p.append(p*1.0j)
 
-        ## One-electron property integrals
-
-        # Electric dipole integrals (length): -e r
-        dipole_ints = mints.ao_dipole()
-        self.mu = []
-        for axis in range(3):
-            self.mu.append(npCp.T @ np.asarray(dipole_ints[axis]) @ npCr)
-
-        # Magnetic dipole integrals: -(e/2 m_e) L
-        m_ints = mints.ao_angular_momentum()
-        self.m = []
-        for axis in range(3):
-            m = (npCp.T @ (np.asarray(m_ints[axis])*-0.5) @ npCr)
-            self.m.append(m*1.0j)
-
-        # Linear momentum integrals: (-e) (-i hbar) Del
-        p_ints = mints.ao_nabla()
-        self.p = []
-        for axis in range(3):
-            p = (npCp.T @ np.asarray(p_ints[axis]) @ npCr)
-            self.p.append(p*1.0j)
-
-        # Traceless quadrupole: (-e) (-i hbar) Del
-        Q_ints = mints.ao_traceless_quadrupole()
-        self.Q = []
-        ij = 0
-        for axis1 in range(3):
-            for axis2 in range(axis1,3):
-                self.Q.append(npCp.T @ np.asarray(Q_ints[ij]) @ npCr)
-                ij += 1
+            # Traceless quadrupole: (-e) (-i hbar) Del
+            Q_ints = mints.ao_traceless_quadrupole()
+            self.Q = []
+            ij = 0
+            for axis1 in range(3):
+                for axis2 in range(axis1,3):
+                    self.Q.append(npCp.T @ np.asarray(Q_ints[ij]) @ npCr)
+                    ij += 1

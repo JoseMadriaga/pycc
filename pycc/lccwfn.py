@@ -50,7 +50,7 @@ class lccwfn(object):
     (2) time table for each intermediate?
     """
 
-    def __init__(self, o, v, no, nv, H, local, model, eref, Local):
+    def __init__(self, o, v, no, nv, H, local, model, eref, Local, F_unpert, eps_unpert):
         self.o = o
         self.v = v
         self.no = no
@@ -63,7 +63,10 @@ class lccwfn(object):
         self.QL = self.Local.QL
         self.dim = self.Local.dim
         self.eps = self.Local.eps
-
+        
+        self.F_unpert = F_unpert 
+        self.eps_unpert = eps_unpert     
+ 
         t1 = []
         t2 = []
 
@@ -77,6 +80,9 @@ class lccwfn(object):
 
                 t2.append(-1* self.Local.ERIoovv[ij][i,j] / (self.eps[ij].reshape(1,-1) + self.eps[ij].reshape(-1,1)
                 - self.H.F[i,i] - self.H.F[j,j]))
+
+                #t2.append(-1* self.Local.ERIoovv[ij][i,j] / (self.eps_unpert[ij].reshape(1,-1) + self.eps_unpert[ij].reshape(-1,1)
+                #- self.F_unpert[i,i] - self.F_unpert[j,j]))
 
         self.t1 = t1
         self.t2 = t2

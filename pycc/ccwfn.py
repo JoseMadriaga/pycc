@@ -130,6 +130,8 @@ class ccwfn(object):
             raise Exception("%s is not an allowed property." % (prop))
         self.flag = flag
 
+        self.field_strength = kwargs.pop('field_strength', 0.0001)
+
         self.ref = scf_wfn
         self.eref = self.ref.energy()
         self.nfzc = self.ref.frzcpi()[0]                # assumes symmetry c1
@@ -165,43 +167,34 @@ class ccwfn(object):
             self.C = C
 
         if flag is not None and local is not None:
-            print("Obtaining Q and L") 
+            print("Obtaining Q and L with unperturbed Fock integrals") 
+       
             self.H = Hamiltonian(self.ref, self.C, self.C, self.C, self.C, 'MO')
-            print("unperturbed Fock matrix", self.H.F) 
+            self.F_unpert = self.H.F
+            
             self.Local = Local(local, self.C, self.nfzc, self.no, self.nv, self.H, self.local_cutoff,self.it2_opt)
-            print("unperturbed eps", self.Local.eps[0])
+            self.eps_unpert = self.Local.eps
+ 
+            print("Turning on electric field = %1.6f " % self.field_strength) 
             mints = psi4.core.MintsHelper(self.ref)
             dipole = mints.ao_dipole()
-            pert = -1e-5
+            pert = self.field_strength
             dipole[2].scale(-pert) # dipole_z perturbation
             Perturb_matrix = self.ref.Fa()
             Perturb_matrix.add(dipole[2])
 
-            #redundant
-            #C_occ = self.ref.Ca_subset("AO", "ACTIVE_OCC")
-            #LMOS = psi4.core.Localizer.build(self.local_MOs, self.ref.basisset(), C_occ)
-            #LMOS.localize()
-            #npL = np.asarray(LMOS.L)
-            #npC[:,:self.no] = npL
-            #C = psi4.core.Matrix.from_array(npC)
-            #self.C = C
-
+            print("Converting the Hamiltonian AO to MO with perturbed Fock integrals") 
             self.H = Hamiltonian(self.ref, self.C, self.C, self.C, self.C, 'MO')
-            print("perturbed Fock matrix",self.H.F)   
 
-            #self.Local.eps = []
-            #self.Local.L = []
-            #for ij in range(self.no*self.no): 
-                #F = self.Local.Q[ij].T @ self.H.F[v,v] @ self.Local.Q[ij] 
-                #eval, evec = np.linalg.eigh(F)
-                #self.Local.L.append(evec) 
-                #self.Local.eps.append(eval)
-            #print("perturbed eps", self.Local.eps[0])
+            print("Going to local approach calculation of Finite Field") 
+            self.Local.trans_integrals(self.o, self.v)
+            self.Local.overlaps(self.Local.QL)
+            self.lccwfn = lccwfn(self.o, self.v,self.no, self.nv, self.H, self.local, self.model, self.eref, self.Local, self.F_unpert, self.eps_unpert)            
         else:
             self.H = Hamiltonian(self.ref, self.C, self.C, self.C, self.C, 'MO') 
 
-        #Turning this off
-        if local is not None:
+        if flag is None and local is not None:
+            print("Accessing Local")
             self.Local = Local(local, self.C, self.nfzc, self.no, self.nv, self.H, self.local_cutoff,self.it2_opt)
             if filter is not True:
                 self.Local.trans_integrals(self.o, self.v)

@@ -71,6 +71,15 @@ units Angstrom
 symmetry c1
 """
 
+#Hydrogen peroxide from D'Cunha's PNO++ 2021 
+h2o2 = """
+O -0.182400 -0.692195 -0.031109
+O 0.182400 0.692195 -0.031109
+H 0.533952 -1.077444 0.493728
+H -0.533952 1.077444 0.493728
+symmetry c1
+"""
+
 ### Water cluster
 ## Number of water molecules
 ## 2
@@ -358,6 +367,7 @@ moldict["H2O_HEK"] = h2o_hek
 moldict["H2O_Teach"] = h2o_tutorial
 moldict["H2O"] = h2o
 moldict["H2O_D"] = h2o_dalton
+moldict["H2O2"] = h2o2
 moldict["(H2O)_2"] = h2o_2
 moldict["(H2O)_3"] = h2o_3
 moldict["(H2O)_4"] = h2o_4

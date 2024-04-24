@@ -62,8 +62,8 @@ class Local(object):
     def __init__(self, local, C, nfzc, no, nv, H, cutoff, it2_opt, omega, 
             core_cut=5E-2,
             lindep_cut=1E-6,
-            e_conv=1e-12,
-            r_conv=1e-12):
+            e_conv=1e-8,
+            r_conv=1e-8):
 
         self.cutoff = cutoff
         self.nfzc = nfzc
@@ -388,7 +388,7 @@ class Local(object):
             self._MP2_loop(t2,self.H.F,self.H.ERI,self.H.L,Dijab + self.omega)
         
         # Construct the perturbed pair density, Eqn. 10  
-        D = self._pert_pairdensity(t2)
+        D = self._pert_pairdensity(t2, self.omega)
 
         # Now obtain Q and L 
         Q, L, eps, dim, T2_ratio = self.QL_tensors(v,t2,D,local ='PNO++')       
@@ -471,7 +471,7 @@ class Local(object):
                 self.Q[ji] = self.Q[ij]
                 self.L[ji] = self.L[ij]
                 
-    def _pert_pairdensity(self,t2):
+    def _pert_pairdensity(self,t2, omega):
         '''
          Constructing the approximated perturbed pair density
         
@@ -497,12 +497,12 @@ class Local(object):
         denom_ia = Hbar_ii.reshape(-1,1) - Hbar_aa
 
         #need to add this for response
-        #denom_ia += omega
+        denom_ia += omega
                 
         denom_ijab = Hbar_ii.reshape(-1, 1, 1, 1) + Hbar_ii.reshape(-1, 1, 1) - Hbar_aa.reshape(-1, 1) - Hbar_aa
 
         #going to ignore the omega for a moment such that it is a static case
-        #denom_ijab += omega
+        denom_ijab += omega
 
         self.denom_tuple = (denom_ia, denom_ijab)
 

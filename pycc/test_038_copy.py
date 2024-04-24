@@ -14,8 +14,8 @@ from data.molecules import *
 #local_model = []
 threshold = [1e-03, 1e-04, 1e-05, 1e-06, 1e-07, 1e-08, 1e-09, 1e-10, 1e-11, 1e-12, 1e-13, 1e-14, 1e-15, 1e-16, 0]
 
-geom = "(H2)_5"
-lmo = "PNO"
+geom = "(H2)_4"
+lmo = "PNO++"
 
 psi4.set_memory('2 GiB')
 psi4.core.set_output_file('output.dat', False)
@@ -33,7 +33,11 @@ for t in threshold:
     r_conv = 1e-08
     maxit = 1000
 
-    cc = pycc.ccwfn(rhf_wfn, local_mos = 'BOYS', local= lmo, local_cutoff = t, filter=True)
+    #OR frequencies
+    omega1 = -0.0656
+    omega2 = 0.0656
+
+    cc = pycc.ccwfn(rhf_wfn, local_mos = 'BOYS', local= lmo, local_cutoff = t, filter=True, omega = omega2)
     ecc = cc.solve_cc(e_conv, r_conv, maxit)
     hbar = pycc.cchbar(cc)
     cclambda = pycc.cclambda(cc, hbar)
@@ -42,14 +46,10 @@ for t in threshold:
     
     resp = pycc.ccresponse(density)
     
-    #OR frequencies
-    omega1 = -0.0656
-    omega2 = 0.0656
-    
     resp.pert_quadresp(omega1, omega2, e_conv, r_conv, maxit)
     OR = resp.hyperpolar()
    
-    B_avg = str(geom)+"_adz_OR_"+str(lmo)+".txt"
+    B_avg = str(geom)+"_omega1_adz_OR_"+str(lmo)+".txt"
 
     with open(B_avg, 'a') as f1:
         f1.write(str(t) + ' '+ str(cc.Local.T2_ratio)+' ') 
@@ -57,4 +57,6 @@ for t in threshold:
         for i in range(0,3):
              if i != 2:
                  f1.write(str(OR[0][2,i,i]) + ' ' +str(OR[0][i,2,i]) +' '+str(OR[0][i,i,2])+' ')  
-        f1.write(str(OR[0][2,2,2]) + ' '+str(OR[1])+ '\n')    
+        f1.write(str(OR[0][2,2,2]) + ' '+str(OR[1])+ '\n')  
+     
+    del cc, hbar, cclambda, density, resp  

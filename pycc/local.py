@@ -337,12 +337,13 @@ class Local(object):
         D = self._pairdensity(t2) 
         
         # Now obtain the Q and L
-        Q, L, eps, dim = self.QL_tensors(v,t2,D,local ='PNO')
+        Q, L, eps, dim, T2_ratio = self.QL_tensors(v,t2,D,local ='PNO')
         
         self.Q = Q  # transform between canonical VMO and local spaces
         self.L = L  # transform between local and semicanonical local spaces      
         self.eps = eps  # semicananonical local energies
         self.dim = dim  # dimension of local space
+        self.T2_ratio = T2_ratio
 
         #temporary way to generate make sure the phase factor of Q_ij and L_ij matches with Q_ji and L_ji
         for i in range(self.no):
@@ -390,12 +391,13 @@ class Local(object):
         D = self._pert_pairdensity(t2)
 
         # Now obtain Q and L 
-        Q, L, eps, dim = self.QL_tensors(v,t2,D,local ='PNO++')       
+        Q, L, eps, dim, T2_ratio = self.QL_tensors(v,t2,D,local ='PNO++')       
     
         self.Q = Q  # transform between canonical VMO and local spaces
         self.L = L  # transform between local and semicanonical local spaces 
         self.eps = eps  # semicananonical local energies
         self.dim = dim  # dimension of local space
+        self.T2_ratio = T2_ratio
 
         #temporary way to generate make sure the phase factor of Q_ij and L_ij matches with Q_ji and L_ji
         for i in range(self.no):
@@ -435,6 +437,8 @@ class Local(object):
         self.L = [] # semicanonical PNO list
         self.eps = [] # approximated virtual orbital energies
         T2_local = 0
+        self.T2_ratio = 0 
+
         for ij in range(self.no*self.no):
             i = ij // self.no
             j = ij % self.no
@@ -456,6 +460,7 @@ class Local(object):
         T2_full = (self.no*self.no)*(self.nv*self.nv)
         print("T2 full: %d" % (T2_full))
         print("T2 Ratio: %3.12f" % (T2_local/T2_full))
+        self.T2_ratio = T2_local/T2_full
 
         #temporary way to generate make sure the phase factor of Q_ij and L_ij matches with Q_ji and L_ji
         for i in range(self.no):
@@ -558,6 +563,7 @@ class Local(object):
         eps = [] # approximated virtual orbital energies
         T2_local = 0
 
+        T2_ratio = 0
         for ij in range(self.no*self.no):
             i = ij // self.no
             j = ij % self.no
@@ -584,7 +590,8 @@ class Local(object):
         T2_full = (self.no*self.no)*(self.nv*self.nv)
         print("T2 full: %d" % (T2_full))
         print("T2 Ratio: %3.12f" % (T2_local/T2_full))
-        return Q, L, eps, dim
+        
+        return Q, L, eps, dim, T2_local/T2_full
         
     def _MP2_loop(self,t2,F,ERI,L,Dijab):
         '''
@@ -615,7 +622,7 @@ class Local(object):
         emp2 = contract('ijab,ijab->', t2, L[o,o,v,v])
         print("MP2 Iter %3d: MP2 Ecorr = %.15f  dE = % .5E" % (0, emp2, -emp2))
         
-        maxiter = 200
+        maxiter = 2000
         ediff = emp2
         rmsd = 0.0
         niter = 0

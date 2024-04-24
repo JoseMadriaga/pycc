@@ -109,6 +109,8 @@ class ccresponse(object):
                 tmp = self.ccwfn.Local.Q[ij].T @ self.hbar.Hvv @ self.ccwfn.Local.Q[ij]
                 self.eps_vir.append(np.diag(self.ccwfn.Local.L[ij].T @ tmp @ self.ccwfn.Local.L[ij])) 
 
+        self.hyper_AB = np.zeros((3,3,3))
+
     def pertcheck(self, omega, e_conv=1e-13, r_conv=1e-13, maxiter=200, max_diis=8, start_diis=1):
         """
         Build first-order perturbed wave functions for all available perturbations and return a dict of their converged pseudoresponse values.  Primarily for testing purposes.
@@ -1762,7 +1764,6 @@ class ccresponse(object):
 
         hyper_AB_1st = np.zeros((3,3,3))
         hyper_AB_2nd = np.zeros((3,3,3))
-        hyper_AB = np.zeros((3,3,3))
 
         for a in range(0, 3):
             pertkey_a = "MU_" + self.cart[a]
@@ -1773,16 +1774,17 @@ class ccresponse(object):
 
                     hyper_AB_1st[a,b,c] = self.quadraticresp(pertkey_a, pertkey_b, pertkey_c, ccpert_om_sum_X[pertkey_a], ccpert_om1_X[pertkey_b], ccpert_om2_X[pertkey_c],  ccpert_om_sum_Y[pertkey_a], ccpert_om1_Y[pertkey_b], ccpert_om2_Y[pertkey_c] )
                     hyper_AB_2nd[a,b,c] = self.quadraticresp(pertkey_a, pertkey_b, pertkey_c, ccpert_om_sum_2nd_X[pertkey_a], ccpert_om1_2nd_X[pertkey_b], ccpert_om2_2nd_X[pertkey_c],  ccpert_om_sum_2nd_Y[pertkey_a], ccpert_om1_2nd_Y[pertkey_b], ccpert_om2_2nd_Y[pertkey_c])
-                    hyper_AB[a,b,c] = (hyper_AB_1st[a,b,c] + hyper_AB_2nd[a,b,c] )/2
+                    self.hyper_AB[a,b,c] = (hyper_AB_1st[a,b,c] + hyper_AB_2nd[a,b,c] )/2
 
+        print("hello")
         Beta_avg = 0 
         for i in range(0,3): 
-            Beta_avg += (hyper_AB[2,i,i] + hyper_AB[i,2,i] + hyper_AB[i,i,2])/5
-         
+            Beta_avg += (self.hyper_AB[2,i,i] + self.hyper_AB[i,2,i] + self.hyper_AB[i,i,2])/5
+    
         print("Beta_avg = %10.12lf" %(Beta_avg)) 
         print("\n First Dipole Hyperpolarizability computed in %.3f seconds.\n" % (time.time() - solver_start))
 
-        return Beta_avg
+        return self.hyper_AB, Beta_avg
 
     def solve_right(self, pertbar, omega, e_conv=1e-12, r_conv=1e-12, maxiter=200, max_diis=7, start_diis=1):
         solver_start = time.time()

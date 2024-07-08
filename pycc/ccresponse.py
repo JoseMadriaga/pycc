@@ -155,6 +155,14 @@ class ccresponse(object):
                 self.Dia = eps_occ.reshape(-1,1) #- eps_vir
                 self.Dijab = eps_occ.reshape(-1,1,1,1) + eps_occ.reshape(-1,1,1) #- eps_vir.reshape(-1,1) - eps_vir
 
+        #HBAR-based denominators for simulation code 
+        if self.ccwfn.local is not None:
+            self.eps_occ = np.diag(self.hbar.Hoo)
+            self.eps_vir = []
+            for ij in range(self.ccwfn.no*self.ccwfn.no):
+                tmp = self.ccwfn.Local.Q[ij].T @ self.hbar.Hvv @ self.ccwfn.Local.Q[ij]
+                self.eps_vir.append(np.diag(self.ccwfn.Local.L[ij].T @ tmp @ self.ccwfn.Local.L[ij]))
+
     def pertcheck(self, omega, e_conv=1e-13, r_conv=1e-13, maxiter=200, max_diis=8, start_diis=1):
         """
         Build first-order perturbed wave functions for all available perturbations and return a dict of their converged pseudoresponse values.  Primarily for testing purposes.
@@ -2025,7 +2033,7 @@ class ccresponse(object):
                 polar2 += 0.5 * contract("ac, ac -> ", tmp, Avv[ij][:, :])
         return -1.0 * (polar1 + polar2)
 
-    def solve_right(self, pertbar, omega, e_conv=1e-12, r_conv=1e-12, maxiter=200, max_diis=7, start_diis=1):
+    def solve_right(self, pertbar, omega, e_conv=1e-12, r_conv=1e-12, maxiter=200, max_diis=7, start_diis=1, pert_filter=False):
         solver_start = time.time()
 
         Dia = self.Dia
@@ -2050,6 +2058,7 @@ class ccresponse(object):
             r1 = self.r_X1(pertbar, omega)
             r2 = self.r_X2(pertbar, omega)
 
+<<<<<<< Updated upstream
             #comment out omega and not use eps_vir
             if self.ccwfn.local is not None:
                 inc1, inc2 = self.ccwfn.Local.filter_pertamps(r1, r2, self.eps_occ, self.eps_vir, omega)
@@ -2059,6 +2068,26 @@ class ccresponse(object):
                 rms = contract('ia,ia->', np.conj(inc1/(Dia)), inc1/(Dia))
                 rms += contract('ijab,ijab->', np.conj(inc2/(Dijab)), inc2/(Dijab))
                 rms = np.sqrt(rms)
+=======
+            if self.ccwfn.local is not None and pert_filter:
+                inc1, inc2 = self.ccwfn.Local.filter_pertamps(r1, r2, self.eps_occ, self.eps_vir, omega)  
+                self.X1 += inc1
+                self.X2 += inc2 
+
+                rms = contract('ia,ia->', np.conj(inc1/(Dia+omega)), inc1/(Dia+omega))
+                rms += contract('ijab,ijab->', np.conj(inc2/(Dijab+omega)), inc2/(Dijab+omega))
+                rms = np.sqrt(rms)
+                print("hello")            
+            elif self.ccwfn.local is not None:
+                inc1, inc2 = self.ccwfn.Local.filter_amps(r1, r2)
+                self.X1 += inc1
+                self.X2 += inc2
+
+                rms = contract('ia,ia->', np.conj(inc1/(Dia+omega)), inc1/(Dia+omega))
+                rms += contract('ijab,ijab->', np.conj(inc2/(Dijab+omega)), inc2/(Dijab+omega))
+                rms = np.sqrt(rms)
+                print("there") 
+>>>>>>> Stashed changes
             else:
                 self.X1 += r1/(Dia + omega)
                 self.X2 += r2/(Dijab + omega)
@@ -2066,9 +2095,12 @@ class ccresponse(object):
                 rms = contract('ia,ia->', np.conj(r1/(Dia+omega)), r1/(Dia+omega))
                 rms += contract('ijab,ijab->', np.conj(r2/(Dijab+omega)), r2/(Dijab+omega))
                 rms = np.sqrt(rms)
+<<<<<<< Updated upstream
 
             rms = np.sqrt(rms)
             #end loop
+=======
+>>>>>>> Stashed changes
 
             pseudo = self.pseudoresponse(pertbar, self.X1, self.X2)
             pseudodiff = np.abs(pseudo - pseudo_last)
@@ -2082,7 +2114,11 @@ class ccresponse(object):
             #if niter >= start_diis:
             #    self.X1, self.X2 = diis.extrapolate(self.X1, self.X2)
 
+<<<<<<< Updated upstream
     def local_solve_right(self, lpertbar, omega, conv_hbar, e_conv=1e-12, r_conv=1e-12, maxiter=200):#max_diis=7, start_diis=1):
+=======
+    def solve_left(self, pertbar, omega, e_conv=1e-12, r_conv=1e-12, maxiter=200, max_diis=7, start_diis=1, pert_filter=False):
+>>>>>>> Stashed changes
         """
         For X1, only contains the first term -> requires implementation to the local basis
         """
@@ -2227,6 +2263,7 @@ class ccresponse(object):
             
             r1 = self.r_Y1(pertbar, omega)
             r2 = self.r_Y2(pertbar, omega)
+<<<<<<< Updated upstream
            
             #comment out omega and eps_vir for local
             if self.ccwfn.local is not None:
@@ -2245,6 +2282,35 @@ class ccresponse(object):
                 rms += contract('ijab,ijab->', np.conj(r2/(Dijab+omega)), r2/(Dijab+omega))
                 rms = np.sqrt(rms)
  
+=======
+
+            if self.ccwfn.local is not None and pert_filter:
+                inc1, inc2 = self.ccwfn.Local.filter_pertamps(r1, r2, self.eps_occ, self.eps_vir, omega)
+                self.Y1 += inc1
+                self.Y2 += inc2 
+
+                rms = contract('ia,ia->', np.conj(inc1/(Dia+omega)), inc1/(Dia+omega))
+                rms += contract('ijab,ijab->', np.conj(inc2/(Dijab+omega)), inc2/(Dijab+omega))
+                rms = np.sqrt(rms)
+
+            elif self.ccwfn.local is not None:
+                inc1, inc2 = self.ccwfn.Local.filter_amps(r1, r2)
+                self.Y1 += inc1
+                self.Y2 += inc2
+
+                rms = contract('ia,ia->', np.conj(inc1/(Dia+omega)), inc1/(Dia+omega))
+                rms += contract('ijab,ijab->', np.conj(inc2/(Dijab+omega)), inc2/(Dijab+omega))
+                rms = np.sqrt(rms)
+
+            else:
+                self.Y1 += r1/(Dia + omega)
+                self.Y2 += r2/(Dijab + omega)
+            
+                rms = contract('ia,ia->', np.conj(r1/(Dia+omega)), r1/(Dia+omega))
+                rms += contract('ijab,ijab->', np.conj(r2/(Dijab+omega)), r2/(Dijab+omega))
+                rms = np.sqrt(rms)
+            
+>>>>>>> Stashed changes
             pseudo = self.pseudoresponse(pertbar, self.Y1, self.Y2)
             pseudodiff = np.abs(pseudo - pseudo_last)
             print(f"Iter {niter:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudodiff:.5E} rms = {rms.real:.5E}")

@@ -12,7 +12,7 @@ def test_ccsd_h2o():
     # Psi4 Setup
     psi4.set_memory('2 GB')
     psi4.core.set_output_file('output.dat', False)
-    psi4.set_options({'basis': 'STO-3G',
+    psi4.set_options({'basis': 'aug-cc-pvtz',
                       'scf_type': 'pk',
                       'mp2_type': 'conv',
                       'freeze_core': 'true',
@@ -20,7 +20,7 @@ def test_ccsd_h2o():
                       'd_convergence': 1e-12,
                       'r_convergence': 1e-12,
                       'diis': 1})
-    mol = psi4.geometry(moldict["H2O"])
+    mol = psi4.geometry(moldict["Dimethylallene"])
     rhf_e, rhf_wfn = psi4.energy('SCF', return_wfn=True)
 
     maxiter = 75

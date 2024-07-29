@@ -88,6 +88,10 @@ X_2[string] = resp.solve_right(A, omega1, e_conv=1e-09, r_conv=1e-09, maxiter=20
 print("solving for Y") 
 Y_2[string] = resp.solve_left(A, omega1, e_conv=1e-09, r_conv=1e-09, maxiter=20)
 
+#Bzzz
+Bzzz = resp.quadraticresp(string, string, string, X_2[string], X_2[string], X_2[string], Y_2[string], Y_2[string], Y_2[string])
+print(Bzzz)
+
 #local
 lcc = pycc.ccwfn(rhf_wfn,  local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-06, filter=False)
 lecc = lcc.lccwfn.solve_lcc(e_conv, r_conv)
@@ -98,12 +102,8 @@ ldensity = pycc.ccdensity(lcc, lcclambda)
 
 lresp = pycc.ccresponse(ldensity)
 
-X_2[string] = resp.solve_right(A, omega1, e_conv=1e-09, r_conv=1e-09, maxiter=20)
-Y_2[string] = resp.solve_left(A, omega1, e_conv=1e-09, r_conv=1e-09, maxiter=20)
-
 omega1 = 0.0656
 
-#resp.linresp(omega1)
 
 # Creating dictionaries
 # X_1 = X(-omega); X_2 = X(omega)
@@ -122,5 +122,11 @@ A = lresp.lpertbar[string]
 print("solving for X") 
 X_2[string] = lresp.local_solve_right(A, omega1, hbar_sim, e_conv=1e-09, r_conv=1e-09, maxiter = 20) 
 print("solving for Y") 
-X_2[string] = lresp.local_solve_right(A, omega1, hbar_sim, e_conv=1e-09, r_conv=1e-09, maxiter = 20) 
 Y_2[string] = lresp.local_solve_left(A, omega1, e_conv= 1e-09, r_conv=1e-09, maxiter =20)
+    
+
+#Bzzz
+lBzzz = lresp.lquadraticresp( string, string, string, X_2[string], X_2[string], X_2[string], Y_2[string], Y_2[string], Y_2[string])
+print(lBzzz)
+
+assert(abs(lBzzz-Bzzz) < 1e-7) 

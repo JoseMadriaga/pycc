@@ -4318,11 +4318,11 @@ class ccresponse(object):
 
         ##can combine the next two to swapaxes type contraction
         tmp  += 0.5 * contract('imfg,fgae->iema', l2, ERI[v,v,v,v])
-        #tmp  += 0.5 * contract('imgf,fgea->iema', l2, ERI[v,v,v,v])
+        tmp  += 0.5 * contract('imgf,fgea->iema', l2, ERI[v,v,v,v])
 
         ##can combine the next two to swapaxes type contraction
-        #tmp  += 0.5 * contract('imno,onea->iema', ERI[o,o,o,o], l2)
-        #tmp  += 0.5 * contract('mino,noea->iema', ERI[o,o,o,o], l2)
+        tmp  += 0.5 * contract('imno,onea->iema', ERI[o,o,o,o], l2)
+        tmp  += 0.5 * contract('mino,noea->iema', ERI[o,o,o,o], l2)
         r_Y1 += contract('iema,me->ia', tmp, X1)
 
         #tmp  =  contract('nb,fb->nf', X1, cclambda.build_Gvv(l2, t2))
@@ -4509,13 +4509,19 @@ class ccresponse(object):
                     Hovvo = QL[nm].T @ ERI[i,v,v,n] @ QL[mm]
                     tmp1 = tmp1 - contract('fe,fa -> ea', Hovvo, l2[nm] @ Sijmn[nmii]) 
                     
-                    r_Y1 = r_Y1 + contract('ea,e ->a', tmp1, X1[m])
-        for m in range(no):
-            mm = m*no + m  
-            for i in range(no):
-                ii = i*no + i
-                im = i*no + m 
- 
+                    for _o in range(no):
+                        on = _o*no + n
+                        _no = n*no + _o 
+                        nomm = _no*(no*no) + mm
+                        noii = _no*(no*no) + ii 
+                        onmm = on*(no*no) + mm
+                        onii = on*(no*no) + ii 
+                            
+                        tmp1 = tmp1 + 0.5 * ERI[i,m,n,_o] * (Sijmn[onmm].T @ l2[on] @ Sijmn[onii])
+                        #print(l2[no].shape, Sijmn[nomm].shape)  
+                        tmp1 = tmp1 + 0.5 * ERI[m,i,n,_o] * (Sijmn[nomm].T @ l2[_no] @ Sijmn[noii]) 
+
+                    r_Y1 = r_Y1 + contract('ea,e ->a', tmp1, X1[m])       
                 Hvvvv = contract('fgae, fF -> Fgae', ERI[v,v,v,v], QL[im]) 
                 Hvvvv = contract('Fgae, gG -> FGae', Hvvvv, QL[im]) 
                 Hvvvv = contract('FGae, aA -> FGAe', Hvvvv, QL[ii]) 
@@ -4528,21 +4534,9 @@ class ccresponse(object):
                 Hvvvv = contract('FGea, eE -> FGEa', Hvvvv, QL[mm])
                 Hvvvv = contract('FGEa, aA -> FGEA', Hvvvv, QL[ii])
                 #print(im, l2[im].shape, Hvvvv.shape)
-                #tmp1 = tmp1 + 0.5 * contract('gf, fgea -> ea', l2[im].swapaxes(0,1), Hvvvv) 
+                tmp1 = tmp1 + 0.5 * contract('gf, fgea -> ea', l2[im], Hvvvv) 
             
                 r_Y1 = r_Y1 + contract('ea,e ->a', tmp1, X1[m])
-                   # for _o in range(no):
-                   #     on = _o*no + n
-                   #     _no = n*no + _o 
-                   #     nomm = _no*(no*no) + mm
-                   #     noii = _no*(no*no) + ii 
-                   #     onmm = on*(no*no) + mm
-                   #     onii = on*(no*no) + ii 
-                   #         
-                   #     #tmp1 = tmp1 + 0.5 * ERI[i,m,n,_o] * (Sijmn[onmm].T @ l2[on] @ Sijmn[onii])
-                   #     #print(l2[no].shape, Sijmn[nomm].shape)  
-                   #     #tmp1 = tmp1 + 0.5 * ERI[m,i,n,_o] * (Sijmn[nomm].T @ l2[_no] @ Sijmn[noii])
-                   # r_Y1 = r_Y1 + contract('ea,e ->a', tmp1, X1[m])  
 
         #tmp  =  contract('nb,fb->nf', X1, cclambda.build_Gvv(l2, t2))
         #r_Y1 += contract('inaf,nf->ia', L[o,o,v,v], tmp)

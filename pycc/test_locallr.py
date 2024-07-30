@@ -89,8 +89,8 @@ print("solving for Y")
 Y_2[string] = resp.solve_left(A, omega1, e_conv=1e-09, r_conv=1e-09, maxiter=20)
 
 #Bzzz
-Bzzz = resp.quadraticresp(string, string, string, X_2[string], X_2[string], X_2[string], Y_2[string], Y_2[string], Y_2[string])
-print(Bzzz)
+#Bzzz = resp.quadraticresp(string, string, string, X_2[string], X_2[string], X_2[string], Y_2[string], Y_2[string], Y_2[string])
+#print(Bzzz)
 
 #local
 lcc = pycc.ccwfn(rhf_wfn,  local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-06, filter=False)
@@ -126,7 +126,7 @@ Y_2[string] = lresp.local_solve_left(A, omega1, e_conv= 1e-09, r_conv=1e-09, max
     
 
 #Bzzz
-lBzzz = lresp.lquadraticresp( string, string, string, X_2[string], X_2[string], X_2[string], Y_2[string], Y_2[string], Y_2[string])
-print(lBzzz)
+#lBzzz = lresp.lquadraticresp( string, string, string, X_2[string], X_2[string], X_2[string], Y_2[string], Y_2[string], Y_2[string])
+#print(lBzzz)
 
 assert(abs(lBzzz-Bzzz) < 1e-7) 

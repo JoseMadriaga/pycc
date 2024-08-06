@@ -84,13 +84,13 @@ string = "MU_Z"
 A = resp.pertbar[string]
 
 print("solving for X")
-X_2[string] = resp.solve_right(A, omega1, e_conv=1e-09, r_conv=1e-09, maxiter=20)
+X_2[string] = resp.solve_right(A, omega1, e_conv=1e-13, r_conv=1e-13, maxiter=200)
 print("solving for Y") 
-Y_2[string] = resp.solve_left(A, omega1, e_conv=1e-09, r_conv=1e-09, maxiter=20)
+Y_2[string] = resp.solve_left(A, omega1, e_conv=1e-13, r_conv=1e-13, maxiter=200)
 
 #Bzzz
-#Bzzz = resp.quadraticresp(string, string, string, X_2[string], X_2[string], X_2[string], Y_2[string], Y_2[string], Y_2[string])
-#print(Bzzz)
+Bzzz = resp.quadraticresp(string, string, string, X_2[string], X_2[string], X_2[string], Y_2[string], Y_2[string], Y_2[string])
+print(Bzzz)
 
 #local
 lcc = pycc.ccwfn(rhf_wfn,  local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-06, filter=False)
@@ -120,13 +120,13 @@ string = "MU_Z"
 A = lresp.lpertbar[string]
 
 print("solving for X") 
-X_2[string] = lresp.local_solve_right(A, omega1, hbar_sim, e_conv=1e-09, r_conv=1e-09, maxiter = 20) 
+X_2[string] = lresp.local_solve_right(A, omega1, hbar_sim, e_conv=1e-13, r_conv=1e-13, maxiter = 200) 
 print("solving for Y") 
-Y_2[string] = lresp.local_solve_left(A, omega1, e_conv= 1e-09, r_conv=1e-09, maxiter =20)
+Y_2[string] = lresp.local_solve_left(A, omega1, e_conv= 1e-13, r_conv=1e-13, maxiter =200)
     
 
 #Bzzz
-#lBzzz = lresp.lquadraticresp( string, string, string, X_2[string], X_2[string], X_2[string], Y_2[string], Y_2[string], Y_2[string])
-#print(lBzzz)
+lBzzz = lresp.lquadraticresp( string, string, string, X_2[string], X_2[string], X_2[string], Y_2[string], Y_2[string], Y_2[string])
+print(lBzzz)
 
-#assert(abs(lBzzz-Bzzz) < 1e-7) 
+assert(abs(lBzzz-Bzzz) < 1e-7) 

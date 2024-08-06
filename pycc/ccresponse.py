@@ -509,7 +509,7 @@ class ccresponse(object):
         # BCA
         self.LAX6 = self.comp_lLAX(X1_A, X2_A, Y1_B, Y2_B, pertbar_C)
       
-        self.hyper += self.LAX + self.LAX2 + self.LAX3 + self.LAX4 + self.LAX5 + self.LAX6
+        self.hyper = self.LAX + self.LAX2 + self.LAX3 + self.LAX4 + self.LAX5 + self.LAX6
 
         #Fz expressions
         #L1, X1, X1
@@ -519,7 +519,7 @@ class ccresponse(object):
         #L2, X2, X1 
         self.Fz3 = self.comp_lFz(X1_A, X1_B, X2_A, X2_B, pertbar_C)
 
-        self.hyper += self.Fz1 + self.Fz2 + self.Fz3
+        self.hyper = self.Fz1 + self.Fz2 + self.Fz3
         
         #Generate Hbars for Bcon here
         #self.lHooov()
@@ -760,6 +760,7 @@ class ccresponse(object):
         #LHX1Y1Z2
         self.G += self.comp_lLHXYZ(X2_C, X1_A, X1_B)
  
+        #self.hyper = self.G
         return self.hyper
 
     def comp_lLAX(self, X1_C, X2_C, Y1_B, Y2_B, pertbar_A):
@@ -1142,9 +1143,12 @@ class ccresponse(object):
         Bcon = 0 
         t1 = self.lccwfn.t1
         t2 = self.lccwfn.t2
+        l1 = self.cclambda.l1
         Sijmn = self.Local.Sijmn
         QL = self.Local.QL
+        ERIoovv = self.Local.ERIoovv
         ERI = self.H.ERI
+        L = self.H.L
         v = self.ccwfn.v
 
         # <O|L1(A)[[Hbar(0),X1(B),X1(C)]]|0>
@@ -1242,25 +1246,26 @@ class ccresponse(object):
                     jk = j*no + k
                     jjnk = jj*(no*no) + nk
                     njkk = nj*(no*no) + kk
-        
-                    #Hovov = QL[nk].T @ ERI[j,v,n,v].copy() @ QL[kk]
-                    Hovov = contract('ac, aA -> Ac', ERI[j,v,n,v], QL[nk]) 
-                    Hovov = contract('Ac, cC -> AC', Hovov, QL[kk]) 
-                    #ERIvovv = contract('acf, aA -> Acf', ERI[v,j,v,v], QL[nk]) 
-                    #ERIvovv = contract('Acf, cC -> ACf', ERIvovv, QL[kk]) 
-                    #ERIvovv = contract('ACf, fF -> ACF', ERIvovv, QL[nn]) 
+       
+                      
+                    Hovov = QL[nk].T @ ERI[j,v,n,v].copy() @ QL[kk]
+                    #Hovov = contract('ac, aA -> Ac', ERI[j,v,n,v], QL[nk]) 
+                    #Hovov = contract('Ac, cC -> AC', Hovov, QL[kk]) 
+                    ERIvovv = contract('acf, aA -> Acf', ERI[v,j,v,v], QL[nk]) 
+                    ERIvovv = contract('Acf, cC -> ACf', ERIvovv, QL[kk]) 
+                    ERIvovv = contract('ACf, fF -> ACF', ERIvovv, QL[nn]) 
 
-                    #Hovov = Hovov + contract('f, acf -> ac', t1[n], ERIvovv) 
-                    #for m in range(no): 
-                    #    mm = m*no + m
-                    #    nm = n*no + m
-                    #    mmnk = mm*(no*no) + nk
-                    #    nmnk = nm*(no*no) + nk
+                    Hovov = Hovov + contract('f, acf -> ac', t1[n], ERIvovv) 
+                    for _o in range(no): 
+                        oo = _o*no + _o
+                        _no  = n*no + _o
+                        nkoo = nk*(no*no) + oo
+                        nkno = nk*(no*no) + _no
 
-                    #    Hovov = Hovov + contract('a, c -> ac', Sijmn[mmnk].T @ t1[m], ERI[j,m,n,v] @ QL[kk]) 
-                    #    Hovov = Hovov - contract('fa, cf -> ac', t2[nm] @ Sijmn[nmnk], QL[kk].T @ ERI[m,j,v,v] @ QL[nm])
-                    #    tmp = contract('f, cf -> c', t1[n], QL[kk].T @ ERI[m,j,v,v] @ QL[nn]) 
-                    #    Hovov = Hovov - contract('a,c -> ac', t1[m] @ Sijmn[mmnk], tmp) 
+                        Hovov = Hovov - contract('a, c -> ac', Sijmn[nkoo] @ t1[_o], ERI[j,_o,n,v] @ QL[kk]) 
+                        Hovov = Hovov - contract('fa, cf -> ac', t2[_no] @ Sijmn[nkno].T, QL[kk].T @ ERI[_o,j,v,v] @ QL[_no])
+                        tmp = contract('a, cf -> acf', Sijmn[nkoo] @ t1[_o], QL[kk].T @ ERI[_o,j,v,v] @ QL[nn]) 
+                        Hovov = Hovov - contract('f,acf -> ac', t1[n], tmp) 
                     
                     #jnk loop only 
                     tmp  = -1.0 * contract('ac,ba->cb', Hovov, Y2_A[nk])
@@ -1270,6 +1275,23 @@ class ccresponse(object):
                     #tmp  -= contract('kanb,njca->jckb', hbar.Hovov, Y2_A)
                     Hovov = contract('ab, aA -> Ab', ERI[k,v,n,v], QL[nj])
                     Hovov = contract('Ab, bB -> AB', Hovov, QL[jj])
+
+                    ERIvovv = contract('abf, aA -> Abf', ERI[v,k,v,v], QL[nj])
+                    ERIvovv = contract('Abf, bB -> ABf', ERIvovv, QL[jj])
+                    ERIvovv = contract('ABf, fF -> ABF', ERIvovv, QL[nn])
+
+                    Hovov = Hovov + contract('f, abf -> ab', t1[n], ERIvovv)
+                    for _o in range(no):
+                        oo = _o*no + _o
+                        _no  = n*no + _o
+                        njoo = nj*(no*no) + oo
+                        njno = nj*(no*no) + _no
+
+                        Hovov = Hovov - contract('a, b -> ab', Sijmn[njoo] @ t1[_o], ERI[k,_o,n,v] @ QL[jj])
+                        Hovov = Hovov - contract('fa, bf -> ab', t2[_no] @ Sijmn[njno].T, QL[jj].T @ ERI[_o,k,v,v] @ QL[_no])
+                        tmp = contract('a, bf -> abf', Sijmn[njoo] @ t1[_o], QL[jj].T @ ERI[_o,k,v,v] @ QL[nn])
+                        Hovov = Hovov - contract('f,abf -> ab', t1[n], tmp)
+
                     tmp = -1.0 * contract('ab, ca -> cb', Hovov, Y2_A[nj])  
                     tmp2 = contract('cb, c -> b', tmp, Sijmn[njkk] @ X1_B[k])
                     Bcon = Bcon + contract('b,b->', tmp2, X1_C[j])
@@ -1277,6 +1299,26 @@ class ccresponse(object):
                     # tmp  -= contract('jacn,nkab->jckb', hbar.Hovvo, Y2_A)
                     Hovvo = contract('ac, aA -> Ac', ERI[j,v,v,n], QL[nk])
                     Hovvo = contract('Ac, cC -> AC', Hovvo, QL[kk])
+
+                    ERIovvv = contract('acf, aA -> Acf', ERI[j,v,v,v], QL[nk])
+                    ERIovvv = contract('Acf, cC -> ACf', ERIovvv, QL[kk])
+                    ERIovvv = contract('ACf, fF -> ACF', ERIovvv, QL[nn])
+
+                    Hovvo = Hovvo + contract('f, acf -> ac', t1[n], ERIovvv)
+                    for _o in range(no):
+                        oo = _o*no + _o
+                        _no  = n*no + _o
+                        on = _o*no + n 
+                        nkoo = nk*(no*no) + oo
+                        nkno = nk*(no*no) + _no
+                        nkon = nk*(no*no) + on
+
+                        Hovvo = Hovvo - contract('a, c -> ac', Sijmn[nkoo] @ t1[_o], ERI[j,_o,v,n] @ QL[kk])
+                        Hovvo = Hovvo - contract('fa, cf -> ac', t2[_no] @ Sijmn[nkno].T, QL[kk].T @ ERI[j,_o,v,v] @ QL[_no])
+                        tmp = contract('a, cf -> acf', Sijmn[nkoo] @ t1[_o], QL[kk].T @ ERI[j,_o,v,v] @ QL[nn])
+                        Hovvo = Hovvo - contract('f,acf -> ac', t1[n], tmp)
+                        Hovvo = Hovvo + contract('fa, cf -> ac', t2[on] @ Sijmn[nkon].T, QL[kk].T @ L[j,_o,v,v] @ QL[_no])
+
                     tmp = -1.0 * contract('ac, ab -> cb', Hovvo, Y2_A[nk]) 
                     tmp2 = contract('cb, c -> b', tmp, X1_B[k])
                     Bcon = Bcon + contract('b,b->', tmp2, Sijmn[jjnk].T @ X1_C[j])
@@ -1284,24 +1326,64 @@ class ccresponse(object):
                     # tmp  -= contract('kabn,njac->jckb', hbar.Hovvo, Y2_A)
                     Hovvo = contract('ab, aA -> Ab', ERI[k,v,v,n], QL[nj])
                     Hovvo = contract('Ab, bB -> AB', Hovvo, QL[jj])
+
+                    ERIovvv = contract('abf, aA -> Abf', ERI[k,v,v,v], QL[nj])
+                    ERIovvv = contract('Abf, bB -> ABf', ERIovvv, QL[jj])
+                    ERIovvv = contract('ABf, fF -> ABF', ERIovvv, QL[nn])
+
+                    Hovvo = Hovvo + contract('f, abf -> ab', t1[n], ERIovvv)
+                    for _o in range(no):
+                        oo = _o*no + _o
+                        _no  = n*no + _o
+                        on = _o*no + n
+                        njoo = nj*(no*no) + oo
+                        njno = nj*(no*no) + _no
+                        njon = nj*(no*no) + on
+
+                        Hovvo = Hovvo - contract('a, b -> ab', Sijmn[njoo] @ t1[_o], ERI[k,_o,v,n] @ QL[jj])
+                        Hovvo = Hovvo - contract('fa, bf -> ab', t2[_no] @ Sijmn[njno].T, QL[jj].T @ ERI[k,_o,v,v] @ QL[_no])
+                        tmp = contract('a, bf -> abf', Sijmn[njoo] @ t1[_o], QL[jj].T @ ERI[k,_o,v,v] @ QL[nn])
+                        Hovvo = Hovvo - contract('f,abf -> ab', t1[n], tmp)
+                        Hovvo = Hovvo + contract('fa, bf -> ab', t2[on] @ Sijmn[njon].T, QL[jj].T @ L[k,_o,v,v] @ QL[_no])
+
                     tmp = -1.0 * contract('ab, ac -> cb', Hovvo, Y2_A[nj])
                     tmp2 = contract('cb, c -> b', tmp, Sijmn[njkk] @ X1_B[k])
                     Bcon = Bcon + contract('b,b->', tmp2, X1_C[j])
 
                     for i in range(no):
+                        ii = i*no + i 
                         ni = n*no + i  
+                        _in = i*no + n
                         nijj = ni*(no*no) + jj 
                         nikk = ni*(no*no) + kk 
                         # tmp  += 0.5* contract('kjin,nibc->jckb', hbar.Hoooo, Y2_A)
-                        tmp = 0.5 * ERI[k,j,i,n] * Y2_A[ni].swapaxes(0,1) 
+  
+                        Hoooo = ERI[k,j,i,n].copy()
+                        tmp_oooo = contract('e,e ->', t1[n], ERI[k,j,i,v] @ QL[nn])
+                        tmp_oooo = tmp_oooo + contract('e,e ->', t1[i], ERI[j,k,n,v] @ QL[ii])
+                        Hoooo = Hoooo + tmp_oooo
+                        Hoooo = Hoooo + contract('ef, ef->', t2[_in], ERIoovv[_in][k,j])
+                        tmp =  contract('f, ef -> e', t1[n], QL[ii].T @ ERI[k,j,v,v] @ QL[nn])
+                        Hoooo = Hoooo + contract('e, e->', t1[i], tmp)
+
+                        tmp = 0.5 * Hoooo * Y2_A[ni].swapaxes(0,1) 
                         tmp2 = contract('cb, c -> b', tmp, Sijmn[nikk] @ X1_B[k])
                         Bcon = Bcon + contract('b,b->', tmp2, Sijmn[nijj] @ X1_C[j])
 
                         # tmp  += 0.5* contract('jkin,nicb->jckb', hbar.Hoooo, Y2_A)
-                        tmp = 0.5 * ERI[j,k,i,n] * Y2_A[ni]
+
+                        Hoooo = ERI[j,k,i,n]
+                        tmp_oooo = contract('e,e ->', t1[n], ERI[j,k,i,v] @ QL[nn])
+                        tmp_oooo = tmp_oooo + contract('e,e ->', t1[i], ERI[k,j,n,v] @ QL[ii])
+                        Hoooo = Hoooo + tmp_oooo
+                        Hoooo = Hoooo + contract('ef, ef->', t2[_in], ERIoovv[_in][j,k])
+                        tmp =  contract('f, ef -> e', t1[n], QL[ii].T @ ERI[j,k,v,v] @ QL[nn])
+                        Hoooo = Hoooo + contract('e, e->', t1[i], tmp)
+
+                        tmp = 0.5 * Hoooo * Y2_A[ni]
                         tmp2 = contract('cb, c -> b', tmp, Sijmn[nikk] @ X1_B[k])
                         Bcon = Bcon + contract('b,b->', tmp2, Sijmn[nijj] @ X1_C[j])
-
+ 
         for j in range(no):
             jj = j*no + j
  
@@ -1315,6 +1397,34 @@ class ccresponse(object):
                 Hvvvv = contract('Fabc, aA -> FAbc', Hvvvv, QL[jk]) 
                 Hvvvv = contract('FAbc, bB -> FABc', Hvvvv, QL[jj]) 
                 Hvvvv = contract('FABc, cC -> FABC', Hvvvv, QL[kk]) 
+                
+                for n in range(no):
+                    nn = n*no + n
+                    jknn = jk*(no*no) + nn
+
+                    ERIvovv = contract('fbc, fF -> Fbc', ERI[v,n,v,v], QL[jk])
+                    ERIvovv = contract('Fbc, bB -> FBc', ERIvovv, QL[jj])
+                    ERIvovv = contract('FBc, cC -> FBC', ERIvovv, QL[kk])
+
+                    Hvvvv = Hvvvv - contract('a, fbc -> fabc', Sijmn[jknn] @ t1[n], ERIvovv)
+
+                    ERIvovv = contract('acb, aA -> Acb', ERI[v,n,v,v], QL[jk])
+                    ERIvovv = contract('Acb, cC -> ACb', ERIvovv, QL[kk])
+                    ERIvovv = contract('ACb, bB -> ACB', ERIvovv, QL[jj])
+
+                    tmp = contract('f, acb -> afcb', Sijmn[jknn] @ t1[n], ERIvovv)
+                    Hvvvv = Hvvvv - tmp.swapaxes(0,1).swapaxes(2,3)
+
+                    for _o in range(no):
+                        _no = n*no + _o
+                        oo = _o*no + _o
+                        jkno = jk*(no*no) + _no
+                        jkoo = jk*(no*no) + oo
+
+                        Hvvvv = Hvvvv + contract('fa, bc -> fabc', Sijmn[jkno] @ t2[_no] @ Sijmn[jkno].T, QL[jj].T @ ERI[n,_o,v,v] @ QL[kk])
+                        tmp = contract('a, bc-> abc', Sijmn[jkoo] @ t1[_o], QL[jj].T @ ERI[n,_o,v,v] @ QL[kk])
+                        Hvvvv = Hvvvv + contract('f, abc -> fabc', Sijmn[jknn] @ t1[n], tmp)
+
                 tmp = 0.5 * contract('fabc, fa -> cb', Hvvvv, Y2_A[jk])
                 tmp2 = contract('cb, c -> b', tmp, X1_B[k])
                 Bcon = Bcon + contract('b,b->', tmp2, X1_C[j])
@@ -1324,6 +1434,34 @@ class ccresponse(object):
                 Hvvvv = contract('Facb, aA -> FAcb', Hvvvv, QL[kj])
                 Hvvvv = contract('FAcb, cC -> FACb', Hvvvv, QL[kk])
                 Hvvvv = contract('FACb, bB -> FACB', Hvvvv, QL[jj])
+
+                for n in range(no):
+                    nn = n*no + n
+                    kjnn = kj*(no*no) + nn
+
+                    ERIvovv = contract('fcb, fF -> Fcb', ERI[v,n,v,v], QL[kj])
+                    ERIvovv = contract('Fcb, cC -> FCb', ERIvovv, QL[kk])
+                    ERIvovv = contract('FCb, bB -> FCB', ERIvovv, QL[jj])
+
+                    Hvvvv = Hvvvv - contract('a, fcb -> facb', Sijmn[kjnn] @ t1[n], ERIvovv)
+
+                    ERIvovv = contract('abc, aA -> Abc', ERI[v,n,v,v], QL[kj])
+                    ERIvovv = contract('Abc, bB -> ABc', ERIvovv, QL[jj])
+                    ERIvovv = contract('ABc, cC -> ABC', ERIvovv, QL[kk])
+
+                    tmp = contract('f, abc -> afbc', Sijmn[kjnn] @ t1[n], ERIvovv)
+                    Hvvvv = Hvvvv - tmp.swapaxes(0,1).swapaxes(2,3)
+
+                    for _o in range(no):
+                        _no = n*no + _o
+                        oo = _o*no + _o
+                        kjno = kj*(no*no) + _no
+                        kjoo = kj*(no*no) + oo
+
+                        Hvvvv = Hvvvv + contract('fa, cb -> facb', Sijmn[kjno] @ t2[_no] @ Sijmn[kjno].T, QL[kk].T @ ERI[n,_o,v,v] @ QL[jj])
+                        tmp = contract('a, cb-> acb', Sijmn[kjoo] @ t1[_o], QL[kk].T @ ERI[n,_o,v,v] @ QL[jj])
+                        Hvvvv = Hvvvv + contract('f, acb -> facb', Sijmn[kjnn] @ t1[n], tmp)
+
                 tmp = 0.5 * contract('facb, fa -> cb', Hvvvv, Y2_A[kj])
                 tmp2 = contract('cb, c -> b', tmp, X1_B[k])
                 Bcon = Bcon + contract('b,b->', tmp2, X1_C[j])
@@ -1474,6 +1612,13 @@ class ccresponse(object):
                     Hvovv = contract('Acb, cC -> ACb', Hvovv, QL[kl]) 
                     Hvovv = contract('ACb, bB -> ACB', Hvovv, QL[jj]) 
 
+                    for n in range(no):
+                        nn = n*no + n
+                        lknn = lk*(no*no) + nn
+
+                        Hvovv = Hvovv - contract('a, cb ->acb', Sijmn[lknn] @ t1[n], QL[kl].T @ ERI[n,j,v,v] @ QL[jj])
+                        Hvovv_34swap = Hvovv_34swap - contract('a, bc -> abc' , Sijmn[lknn] @ t1[n], QL[jj].T @ ERI[n,j,v,v] @ QL[kl])
+
                     tmp = contract('da, cd -> ac', Y2_A[lk], X2_C[kl] @ Sijmn[kllk])           
                     tmp2 = contract('b,acb -> ac', X1_B[j], 2.0 * Hvovv - Hvovv_34swap.swapaxes(1,2))  
                     Bcon = Bcon + contract('ac,ac ->', tmp, tmp2)  
@@ -1484,6 +1629,13 @@ class ccresponse(object):
                     Hvovv_34swap = contract('ACb, bB -> ACB', Hvovv_34swap, QL[jj]) 
                     Hvovv = contract('Abc, bB -> ABc', Hvovv, QL[jj]) 
                     Hvovv = contract('ABc, cC -> ABC', Hvovv, QL[kl])              
+
+                    for n in range(no):
+                        nn = n*no + n
+                        ljnn = lj*(no*no) + nn
+
+                        Hvovv = Hvovv - contract('a, bc ->abc', Sijmn[ljnn] @ t1[n], QL[jj].T @ ERI[n,k,v,v] @ QL[kl])
+                        Hvovv_34swap = Hvovv_34swap - contract('a, bc -> abc' , Sijmn[ljnn] @ t1[n], QL[kl].T @ ERI[n,k,v,v] @ QL[jj])
 
                     tmp = contract('b, da -> bda', X1_B[j], Y2_A[lj]) 
                     tmp2 = contract('cd, abc -> dab', X2_C[kl] @ Sijmn[kllj], 2.0 * Hvovv - Hvovv_34swap.swapaxes(1,2))
@@ -1500,7 +1652,12 @@ class ccresponse(object):
                     Hvovv = contract('fba, fF -> Fba', ERI[v,k,v,v], QL[ji]) 
                     Hvovv = contract('Fba, bB -> FBa', Hvovv, QL[jk]) 
                     Hvovv = contract('FBa, aA -> FBA', Hvovv, QL[ii]) 
-                 
+                    for n in range(no):
+                        nn = n*no + n
+                        jinn = ji*(no*no) + nn
+
+                        Hvovv = Hvovv - contract('f, ba -> fba', Sijmn[jinn] @ t1[n], QL[jk].T @ ERI[n,k,v,v] @ QL[ii])
+ 
                     tmp = contract('a, fba -> fb', X1_B[i], Hvovv) 
                     tmp = contract('fb, fc -> bc', tmp, Y2_A[ji]) 
                     Bcon = Bcon - contract('bc,bc ->', X2_C[jk] @ Sijmn[jkji], tmp) 
@@ -1508,6 +1665,11 @@ class ccresponse(object):
                     Hvovv = contract('fba, fF -> Fba', ERI[v,j,v,v], QL[ik])
                     Hvovv = contract('Fba, bB -> FBa', Hvovv, QL[ii])
                     Hvovv = contract('FBa, aA -> FBA', Hvovv, QL[jk])
+                    for n in range(no):
+                        nn = n*no + n
+                        iknn = ik*(no*no) + nn
+
+                        Hvovv = Hvovv - contract('f, ba -> fba', Sijmn[iknn] @ t1[n], QL[ii].T @ ERI[n,j,v,v] @ QL[jk])
 
                     tmp = contract('a, fac -> fc', X1_B[i], Hvovv) 
                     tmp = contract('fc, fb -> bc', tmp, Y2_A[ik]) 
@@ -1516,39 +1678,55 @@ class ccresponse(object):
                     Hvovv = contract('fba, fF -> Fba', ERI[v,i,v,v], QL[jk])
                     Hvovv = contract('Fba, bB -> FBa', Hvovv, QL[jk])
                     Hvovv = contract('FBa, aA -> FBA', Hvovv, QL[jk]) 
-  
+                    for n in range(no):
+                        nn = n*no + n
+                        jknn = jk*(no*no) + nn
+
+                        Hvovv = Hvovv - contract('f, ba -> fba', Sijmn[jknn] @ t1[n], QL[jk].T @ ERI[n,i,v,v] @ QL[jk])  
+
                     tmp = contract('a, fa -> f', Sijmn[jkii] @ X1_B[i], Y2_A[jk]) 
                     tmp2 = contract('bc, fbc -> f', X2_C[jk], Hvovv) 
                     Bcon = Bcon - contract('f,f->', tmp2, tmp) 
        
-        # tmp = contract('ia,jkfa->jkfi', X1_B, Y2_A)
-        # tmp2 = contract('jkbc,fibc->jkfi', X2_C, hbar.Hvovv)
-        # self.Bcon1 -= contract('jkfi,jkfi->', tmp2, tmp)
+                    #Hooov = contract('b, bB -> B', ERI[k,j,i,v], QL[jj]) 
+                    #Hooov_12swap = contract('b, bB -> B', ERI[j,k,i,v], QL[jj]) 
+                    #Hooov = Hooov + contract('f, bf -> b', t1[i], QL[jj].T @ ERI[j,k,v,v] @ QL[ii])
+                    #Hooov_12swap = Hooov_12swap + contract('f, bf -> b', t1[i], QL[jj].T @ ERI[k,j,v,v] @ QL[ii])
 
-                    Hooov = contract('b, bB -> B', ERI[k,j,i,v], QL[jj]) 
-                    Hooov_12swap = contract('b, bB -> B', ERI[j,k,i,v], QL[jj]) 
-                    tmp = contract('b,b->', X1_B[j], -2.0 * Hooov + Hooov_12swap) 
+                    #tmp = tmp + contract('a,e -> ae', -2.0 * Hooov + Hooov_12swap, l1[n] @ Sijmn[nnmm])                    
+
+                    #tmp = contract('b,b->', X1_B[j], -2.0 * Hooov + Hooov_12swap) 
                     for l in range(no):
                         kl = k*no + l 
                         il = i*no + l 
                         klil = kl*(no*no) + il
                         jjil = jj*(no*no) + il 
 
+                        #this is the same as the above
+                        Hooov = contract('b, bB -> B', ERI[k,j,i,v], QL[jj]) 
+                        Hooov_12swap = contract('b, bB -> B', ERI[j,k,i,v], QL[jj]) 
+                        Hooov = Hooov + contract('f, bf -> b', t1[i], QL[jj].T @ ERI[j,k,v,v] @ QL[ii])
+                        Hooov_12swap = Hooov_12swap + contract('f, bf -> b', t1[i], QL[jj].T @ ERI[k,j,v,v] @ QL[ii])
+                        tmp = contract('b,b->', X1_B[j], -2.0 * Hooov + Hooov_12swap) 
                         tmp2 = contract('cd, cd->', Sijmn[klil].T @ X2_C[kl] @ Sijmn[klil], Y2_A[il]) 
                         Bcon = Bcon + (tmp * tmp2) 
                              
                         Hooov = contract('b, bB -> B', ERI[j,k,i,v], QL[kl])  
                         Hooov_12swap = contract('b, bB -> B', ERI[k,j,i,v], QL[kl])  
+                        Hooov = Hooov + contract('f, bf -> b', t1[i], QL[kl].T @ ERI[k,j,v,v] @ QL[ii])
+                        Hooov_12swap = Hooov_12swap + contract('f, bf -> b', t1[i], QL[kl].T @ ERI[j,k,v,v] @ QL[ii])
 
                         tmp1 = contract('c, cd -> d', 2.0 * Hooov - Hooov_12swap, X2_C[kl] @ Sijmn[klil]) 
                         tmp1 = contract('d, b-> bd', tmp1, X1_B[j] @ Sijmn[jjil])
                         Bcon = Bcon - contract('bd, bd ->', tmp1, Y2_A[il]) 
        
                     for n in range(no): 
-                        ni = n*no + i 
+                        ni = n*no + i
+                        nn = n*no + n 
                         jkni = jk*(no*no) + ni 
 
                         Hooov = contract('b, bB -> B', ERI[j,k,n,v], QL[ii])
+                        Hooov = Hooov + contract('f, bf -> b', t1[n], QL[ii].T @ ERI[k,j,v,v] @ QL[nn])
 
                         tmp = contract('a, a->', X1_B[i], Hooov) 
                         tmp2 = contract('bc, bc ->', Sijmn[jkni].T @ X2_C[jk] @ Sijmn[jkni], Y2_A[ni])
@@ -1558,6 +1736,7 @@ class ccresponse(object):
             ii = i*no + i 
             for k in range(no):
                 for n in range(no):
+                    nn = n*no + n
                     nk = n*no + k
                     iink = ii*(no*no) + nk
  
@@ -1569,11 +1748,15 @@ class ccresponse(object):
                         tmp = contract('a, ab -> b', Sijmn[iink].T @ X1_B[i], Y2_A[nk]) 
                         tmp = contract('bc, b -> c', Sijmn[nkjk] @ X2_C[jk], tmp) 
                         Hooov = contract('c, cC -> C', ERI[i,j,n,v], QL[jk])           
+                        Hooov = Hooov + contract('f, cf -> c', t1[n], QL[jk].T @ ERI[j,i,v,v] @ QL[nn])
+
                         Bcon = Bcon + contract('c, c ->', tmp, Hooov)
         
                         tmp = contract('a, ba -> b', Sijmn[iink].T @ X1_B[i], Y2_A[nk]) 
                         tmp = contract('bc, b -> c', Sijmn[nkjk] @ X2_C[jk], tmp) 
-                        Hooov = contract('c, cC -> C', ERI[j,i,n,v], QL[jk])     
+                        Hooov = contract('c, cC -> C', ERI[j,i,n,v], QL[jk])  
+                        Hooov = Hooov + contract('f, cf -> c', t1[n], QL[jk].T @ ERI[i,j,v,v] @ QL[nn])
+   
                         Bcon = Bcon + contract('c, c ->', tmp, Hooov)            
 
         for i in range(no): 
@@ -1631,6 +1814,13 @@ class ccresponse(object):
                         Hvovv = contract('Acb, cC -> ACb', Hvovv, QL[kl]) 
                         Hvovv = contract('ACb, bB -> ACB', Hvovv, QL[jj]) 
 
+                        for n in range(no):
+                            nn = n*no + n
+                            lknn = lk*(no*no) + nn
+
+                            Hvovv = Hvovv - contract('a, cb -> acb', Sijmn[lknn] @ t1[n], QL[kl].T @ ERI[n,j,v,v] @ QL[jj])
+                            Hvovv_34swap = Hvovv_34swap - contract('a, bc -> abc', Sijmn[lknn] @ t1[n], QL[jj].T @ ERI[n,j,v,v] @ QL[kl])
+
                         tmp = contract('da, cd -> ac', Y2_A[lk], X2_B[kl] @ Sijmn[kllk])
                         tmp2 = contract('b,acb -> ac', X1_C[j], 2.0 * Hvovv - Hvovv_34swap.swapaxes(1,2))
                         Bcon = Bcon + contract('ac, ac->', tmp, tmp2) 
@@ -1640,6 +1830,13 @@ class ccresponse(object):
                         Hvovv_34swap = contract('ACb, bB -> ACB', Hvovv_34swap, QL[jj])
                         Hvovv = contract('Abc, bB -> ABc', Hvovv, QL[jj])
                         Hvovv = contract('ABc, cC -> ABC', Hvovv, QL[kl])
+
+                        for n in range(no):
+                            nn = n*no + n
+                            ljnn = lj*(no*no) + nn
+
+                            Hvovv = Hvovv - contract('a, bc -> abc', Sijmn[ljnn] @ t1[n], QL[jj].T @ ERI[n,k,v,v] @ QL[kl])
+                            Hvovv_34swap = Hvovv_34swap - contract('a, cb -> acb', Sijmn[ljnn] @ t1[n], QL[kl].T @ ERI[n,k,v,v] @ QL[jj])
 
                         tmp = contract('b, da -> bda', X1_C[j], Y2_A[lj]) 
                         tmp2 = contract('cd, abc -> dab', X2_B[kl] @ Sijmn[kllj], 2.0 * Hvovv - Hvovv_34swap.swapaxes(1,2)) 
@@ -1662,7 +1859,13 @@ class ccresponse(object):
                     Hvovv = contract('abc, aA -> Abc', ERI[v,k,v,v], QL[ji])
                     Hvovv = contract('Abc, bB -> ABc', Hvovv, QL[jk])
                     Hvovv = contract('ABc, cC -> ABC', Hvovv, QL[ii])
-                    
+
+                    for n in range(no):
+                        nn = n*no + n
+                        jinn = ji*(no*no) + nn
+
+                        Hvovv = Hvovv - contract('a, bc -> abc', Sijmn[jinn] @ t1[n], QL[jk].T @ ERI[n,k,v,v] @ QL[ii])
+
                     tmp = contract('a, fba -> fb', X1_C[i], Hvovv)
                     tmp = contract('fb, fc -> bc', tmp, Y2_A[ji]) 
                     Bcon = Bcon - contract('bc, bc ->', X2_B[jk] @ Sijmn[jijk].T, tmp)    
@@ -1671,6 +1874,12 @@ class ccresponse(object):
                     Hvovv = contract('Abc, bB -> ABc', Hvovv, QL[ii])
                     Hvovv = contract('ABc, cC -> ABC', Hvovv, QL[jk])
      
+                    for n in range(no):
+                        nn = n*no + n 
+                        iknn = ik*(no*no) + nn
+
+                        Hvovv = Hvovv - contract('a, bc -> abc', Sijmn[iknn] @ t1[n], QL[ii].T @ ERI[n,j,v,v] @ QL[jk])
+
                     tmp = contract('a, fac -> fc', X1_C[i], Hvovv)
                     tmp = contract('fc, fb -> bc', tmp, Y2_A[ik]) 
                     Bcon = Bcon - contract('bc, bc ->', Sijmn[jkik].T @ X2_B[jk], tmp) 
@@ -1679,12 +1888,18 @@ class ccresponse(object):
                     Hvovv = contract('Abc, bB -> ABc', Hvovv, QL[jk])
                     Hvovv = contract('ABc, cC -> ABC', Hvovv, QL[jk])
 
+                    for n in range(no):
+                        nn = n*no + n
+                        jknn = jk*(no*no) + nn
+
+                        Hvovv = Hvovv - contract('a, bc -> abc', Sijmn[jknn] @ t1[n], ERIoovv[jk][n,i])
+
                     tmp = contract('a, fa -> f', X1_C[i] @ Sijmn[iijk], Y2_A[jk])
                     tmp2 = contract('bc, fbc -> f', X2_B[jk], Hvovv)
                     Bcon = Bcon - contract('f, f ->', tmp2, tmp)
 
-                    Hooov = contract('b, bB -> B', ERI[k,j,i,v], QL[jj])
-                    Hooov_12swap = contract('b, bB -> B', ERI[j,k,i,v], QL[jj])
+                    #Hooov = contract('b, bB -> B', ERI[k,j,i,v], QL[jj])
+                    #Hooov_12swap = contract('b, bB -> B', ERI[j,k,i,v], QL[jj])
                     for l in range(no): 
                         il = i*no + l 
                         kl = k*no + l 
@@ -1694,6 +1909,8 @@ class ccresponse(object):
                         #Hooov = contract('b, bB -> B', ERI[k,j,i,v], QL[jj])
                         Hooov = contract('b, bB -> B', ERI[k,j,i,v], QL[jj])
                         Hooov_12swap = contract('b, bB -> B', ERI[j,k,i,v], QL[jj])
+                        Hooov = Hooov + contract('f, bf -> b', t1[i], QL[jj].T @ ERI[j,k,v,v] @ QL[ii])
+                        Hooov_12swap = Hooov_12swap + contract('f, bf -> b', t1[i], QL[jj].T @ ERI[k,j,v,v] @ QL[ii])
 
                         tmp = contract('b, b->', X1_C[j], -2.0 * Hooov + Hooov_12swap) 
                         tmp2 = contract('cd, cd->', Sijmn[klil].T @ X2_B[kl] @ Sijmn[klil], Y2_A[il]) 
@@ -1701,29 +1918,35 @@ class ccresponse(object):
                   
                         Hooov = contract('c, cC -> C', ERI[j,k,i,v], QL[kl]) 
                         Hooov_12swap = contract('c, cC -> C', ERI[k,j,i,v], QL[kl])
+                        Hooov = Hooov + contract('f, cf -> c', t1[i], QL[kl].T @ ERI[k,j,v,v] @ QL[ii])
+                        Hooov_12swap = Hooov_12swap + contract('f, bf -> b', t1[i], QL[kl].T @ ERI[j,k,v,v] @ QL[ii])
 
                         tmp = contract('c, cd -> d', 2.0 * Hooov - Hooov_12swap, X2_B[kl] @ Sijmn[klil]) 
                         tmp = contract('d, b -> bd', tmp, X1_C[j] @ Sijmn[jjil]) 
                         Bcon = Bcon - contract('bd, bd ->', tmp, Y2_A[il]) 
    
                     for n in range(no): 
+                        nn = n*no + n
                         ni = n*no + i
                         nk = n*no + k  
                         jkni = jk*(no*no) + ni 
                         iink = ii*(no*no) + nk
                         jknk = jk*(no*no) + nk
 
-                        Hooov = contract('c, cC -> C', ERI[j,k,n,v], QL[ii])
+                        Hooov = contract('a, aA -> A', ERI[j,k,n,v], QL[ii])
+                        Hooov = Hooov + contract('f, af -> a', t1[n], QL[ii].T @ ERI[k,j,v,v] @ QL[nn])
                         tmp = contract('a, a ->', X1_C[i], Hooov)
                         tmp2 = contract('bc, bc ->', Sijmn[jkni].T @ X2_B[jk] @ Sijmn[jkni], Y2_A[ni])
                         Bcon = Bcon + (tmp2 * tmp) 
 
                         Hooov = contract('c, cC -> C', ERI[i,j,n,v], QL[jk]) 
+                        Hooov = Hooov + contract('f, cf -> c', t1[n], QL[jk].T @ ERI[j,i,v,v] @ QL[nn])
                         tmp = contract('a, ab -> b', X1_C[i] @ Sijmn[iink], Y2_A[nk]) 
                         tmp = contract('bc, b -> c', Sijmn[jknk].T @ X2_B[jk], tmp) 
                         Bcon = Bcon + contract('c, c ->', tmp, Hooov) 
 
                         Hooov = contract('c, cC -> C', ERI[j,i,n,v], QL[jk])
+                        Hooov = Hooov + contract('f, cf -> c', t1[n], QL[jk].T @ ERI[i,j,v,v] @ QL[nn])
                         tmp = contract('a, ba -> b', X1_C[i] @ Sijmn[iink], Y2_A[nk])
                         tmp = contract('bc, b -> c', Sijmn[jknk].T @ X2_B[jk], tmp)
                         Bcon = Bcon + contract('c, c ->', tmp, Hooov) 
@@ -1768,18 +1991,18 @@ class ccresponse(object):
         Bcon += contract('ia,ia->', tmp2, X1_C)  
 
         # # <O|L2(A)|[[Hbar(0),X1(B)],X1(C)]|0>
-        #converting all Hoooo, Hovov, Hovvo and Hvvvv to ERIovov and ERIovvo for now
-        tmp   = -1.0* contract('janc,nkba->jckb', ERI[o,v,o,v], Y2_A)
-        tmp  -= contract('kanb,njca->jckb', ERI[o,v,o,v], Y2_A)
-        tmp  -= contract('jacn,nkab->jckb', ERI[o,v,v,o], Y2_A)
-        tmp  -= contract('kabn,njac->jckb', ERI[o,v,v,o], Y2_A)
-        tmp  += 0.5* contract('fabc,jkfa->jckb', ERI[v,v,v,v], Y2_A)
-        tmp  += 0.5* contract('facb,kjfa->jckb', ERI[v,v,v,v], Y2_A)
-        tmp  += 0.5* contract('kjin,nibc->jckb', ERI[o,o,o,o], Y2_A)
-        tmp  += 0.5* contract('jkin,nicb->jckb', ERI[o,o,o,o], Y2_A)
+        tmp   = -1.0* contract('janc,nkba->jckb', hbar.Hovov, Y2_A)
+        tmp  -= contract('kanb,njca->jckb', hbar.Hovov, Y2_A)
+        tmp  -= contract('jacn,nkab->jckb', hbar.Hovvo, Y2_A)
+        tmp  -= contract('kabn,njac->jckb', hbar.Hovvo, Y2_A)
+        tmp  += 0.5* contract('fabc,jkfa->jckb', hbar.Hvvvv, Y2_A)
+        tmp  += 0.5* contract('facb,kjfa->jckb', hbar.Hvvvv, Y2_A)
+        tmp  += 0.5* contract('kjin,nibc->jckb', hbar.Hoooo, Y2_A)
+        tmp  += 0.5* contract('jkin,nicb->jckb', hbar.Hoooo, Y2_A)
         tmp2 = contract('iema,me->ia', tmp, X1_B)
         Bcon += contract('ia,ia->', tmp2, X1_C)
-
+ 
+        #double check work so far
         tmp = contract('ijab,ijdb->ad', t2, Y2_A)
         tmp = contract('ld,ad->la', X1_C, tmp)
         tmp = contract('la,klca->kc', tmp, L[o,o,v,v])
@@ -1871,58 +2094,58 @@ class ccresponse(object):
 
         #Hvovv
         tmp = contract('lkda,klcd->ac', Y2_A, X2_C)
-        tmp2 = contract('jb,ajcb->ac', X1_B, ERI[v,o,v,v])
+        tmp2 = contract('jb,ajcb->ac', X1_B, hbar.Hvovv)
         Bcon += 2.0* contract('ac,ac->', tmp, tmp2)
 
         #Hvovv
         #swapaxes
         tmp = contract('lkda,klcd->ac', Y2_A, X2_C)
-        tmp2 = contract('jb,ajbc->ac', X1_B, ERI[v,o,v,v])
+        tmp2 = contract('jb,ajbc->ac', X1_B, hbar.Hvovv)
         Bcon -= contract('ac,ac->', tmp, tmp2)
 
         #Hvovv
         tmp = contract('jb,ljda->lbda', X1_B, Y2_A)
-        tmp2 = 2.0* contract('klcd,akbc->ldab', X2_C, ERI[v,o,v,v])
-        tmp2 -= contract('klcd,akcb->ldab', X2_C, ERI[v,o,v,v])
+        tmp2 = 2.0* contract('klcd,akbc->ldab', X2_C, hbar.Hvovv)
+        tmp2 -= contract('klcd,akcb->ldab', X2_C, hbar.Hvovv) 
         Bcon += contract('lbda,ldab->', tmp, tmp2)
 
-        tmp = contract('ia,fkba->fkbi', X1_B, ERI[v,o,v,v])
+        tmp = contract('ia,fkba->fkbi', X1_B, hbar.Hvovv)
         tmp = contract('fkbi,jifc->kjbc', tmp, Y2_A)
         Bcon -= contract('jkbc,kjbc->', X2_C, tmp)
 
-        tmp = contract('ia,fjac->fjic', X1_B, ERI[v,o,v,v])
+        tmp = contract('ia,fjac->fjic', X1_B, hbar.Hvovv)
         tmp = contract('fjic,ikfb->jkbc', tmp, Y2_A)
         Bcon -= contract('jkbc,jkbc->', X2_C, tmp)
 
         ###double check 
         tmp = contract('ia,jkfa->jkfi', X1_B, Y2_A)
-        tmp2 = contract('jkbc,fibc->jkfi', X2_C, ERI[v,o,v,v])
+        tmp2 = contract('jkbc,fibc->jkfi', X2_C, hbar.Hvovv)
         Bcon -= contract('jkfi,jkfi->', tmp2, tmp)
 
-        tmp = contract('jb,kjib->ki', X1_B, ERI[o,o,o,v])
+        tmp = contract('jb,kjib->ki', X1_B, hbar.Hooov)
         tmp2 = contract('klcd,ilcd->ki', X2_C, Y2_A)
         Bcon -= 2.0*contract('ki,ki->', tmp, tmp2)
 
-        tmp = contract('jb,jkib->ki', X1_B, ERI[o,o,o,v])
+        tmp = contract('jb,jkib->ki', X1_B, hbar.Hooov)
         tmp2 = contract('klcd,ilcd->ki', X2_C, Y2_A)
         Bcon += contract('ki,ki->', tmp, tmp2)
 
-        tmp  = 2.0* contract('jkic,klcd->jild', ERI[o,o,o,v], X2_C)
-        tmp -= contract('kjic,klcd->jild', ERI[o,o,o,v], X2_C)
+        tmp  = 2.0* contract('jkic,klcd->jild', hbar.Hooov, X2_C)
+        tmp -= contract('kjic,klcd->jild', hbar.Hooov, X2_C)
         tmp  = contract('jild,jb->bild', tmp, X1_B)
         Bcon -= contract('bild,ilbd->', tmp, Y2_A)
 
-        tmp  = contract('ia,jkna->jkni', X1_B, ERI[o,o,o,v])
+        tmp  = contract('ia,jkna->jkni', X1_B, hbar.Hooov)
         tmp2  = contract('jkbc,nibc->jkni', X2_C, Y2_A)
         Bcon += contract('jkni,jkni->', tmp2, tmp)
 
         tmp  = contract('ia,nkab->nkib', X1_B, Y2_A)
         tmp  = contract('jkbc,nkib->jnic', X2_C, tmp)
-        Bcon += contract('jnic,ijnc->', tmp, ERI[o,o,o,v])
+        Bcon += contract('jnic,ijnc->', tmp, hbar.Hooov)
 
         tmp  = contract('ia,nkba->nkbi', X1_B, Y2_A)
         tmp  = contract('jkbc,nkbi->jnci', X2_C, tmp)
-        Bcon += contract('jnci,jinc->', tmp, ERI[o,o,o,v])
+        Bcon += contract('jnci,jinc->', tmp, hbar.Hooov)
 
         # <O|L1(A)[[Hbar(0),X2(B)],X1(C)]]|0>
         #swapaxes
@@ -1939,8 +2162,6 @@ class ccresponse(object):
         tmp = contract("ki,ia->ka", tmp, X1_C)
         Bcon -= contract("ka,ka->", tmp, Y1_A)
 
-        ######look over here
-   
         # <O|L2(A)[[Hbar(0),X2(B)],X1(C)]]|0>
         tmp = contract("klcd,lkdb->cb", X2_B, Y2_A)
         tmp = contract("jb,cb->jc", X1_C, tmp)
@@ -1950,58 +2171,59 @@ class ccresponse(object):
         tmp = contract("kj,jb->kb", tmp, X1_C)
         Bcon -= contract("kb,kb->", tmp, hbar.Hov)
 
+        #down
         tmp = contract('lkda,klcd->ac', Y2_A, X2_B)
-        tmp2 = contract('jb,ajcb->ac', X1_C, ERI[v,o,v,v])
+        tmp2 = contract('jb,ajcb->ac', X1_C, hbar.Hvovv)
         Bcon += 2.0* contract('ac,ac->', tmp, tmp2)
 
         tmp = contract('lkda,klcd->ac', Y2_A, X2_B)
-        tmp2 = contract('jb,ajbc->ac', X1_C, ERI[v,o,v,v])
+        tmp2 = contract('jb,ajbc->ac', X1_C, hbar.Hvovv)
         Bcon -= contract('ac,ac->', tmp, tmp2)
 
         tmp = contract('jb,ljda->lbda', X1_C, Y2_A)
 
         #swapaxes
-        tmp2 = 2.0* contract('klcd,akbc->ldab', X2_B, ERI[v,o,v,v])
-        tmp2 -= contract('klcd,akcb->ldab', X2_B, ERI[v,o,v,v])
+        tmp2 = 2.0* contract('klcd,akbc->ldab', X2_B, hbar.Hvovv)
+        tmp2 -= contract('klcd,akcb->ldab', X2_B, hbar.Hvovv)
         Bcon += contract('lbda,ldab->', tmp, tmp2)
 
-        tmp = contract('ia,fkba->fkbi', X1_C, ERI[v,o,v,v])
+        tmp = contract('ia,fkba->fkbi', X1_C, hbar.Hvovv)
         tmp = contract('fkbi,jifc->kjbc', tmp, Y2_A)
         Bcon -= contract('jkbc,kjbc->', X2_B, tmp)
 
-        tmp = contract('ia,fjac->fjic', X1_C, ERI[v,o,v,v])
+        tmp = contract('ia,fjac->fjic', X1_C, hbar.Hvovv)
         tmp = contract('fjic,ikfb->jkbc', tmp, Y2_A)
         Bcon -= contract('jkbc,jkbc->', X2_B, tmp)
 
         tmp = contract('ia,jkfa->jkfi', X1_C, Y2_A)
-        tmp2 = contract('jkbc,fibc->jkfi', X2_B, ERI[v,o,v,v])
+        tmp2 = contract('jkbc,fibc->jkfi', X2_B, hbar.Hvovv)
         Bcon -= contract('jkfi,jkfi->', tmp2, tmp)
 
-        tmp = contract('jb,kjib->ki', X1_C, ERI[o,o,o,v])
+        tmp = contract('jb,kjib->ki', X1_C, hbar.Hooov)
         tmp2 = contract('klcd,ilcd->ki', X2_B, Y2_A)
         Bcon -= 2.0* contract('ki,ki->', tmp, tmp2)
 
-        tmp = contract('jb,jkib->ki', X1_C, ERI[o,o,o,v])
+        tmp = contract('jb,jkib->ki', X1_C, hbar.Hooov)
         tmp2 = contract('klcd,ilcd->ki', X2_B, Y2_A)
         Bcon += contract('ki,ki->', tmp, tmp2)
 
-        tmp  = 2.0* contract('jkic,klcd->jild', ERI[o,o,o,v], X2_B)
-        tmp -= contract('kjic,klcd->jild', ERI[o,o,o,v], X2_B)
+        tmp  = 2.0* contract('jkic,klcd->jild', hbar.Hooov, X2_B)
+        tmp -= contract('kjic,klcd->jild', hbar.Hooov, X2_B)
         tmp  = contract('jild,jb->bild', tmp, X1_C)
         Bcon -= contract('bild,ilbd->', tmp, Y2_A)
 
-        tmp  = contract('ia,jkna->jkni', X1_C, ERI[o,o,o,v])
+        tmp  = contract('ia,jkna->jkni', X1_C, hbar.Hooov)
         tmp2  = contract('jkbc,nibc->jkni', X2_B, Y2_A)
         Bcon += contract('jkni,jkni->', tmp2, tmp)
 
         tmp  = contract('ia,nkab->nkib', X1_C, Y2_A)
         tmp  = contract('jkbc,nkib->jnic', X2_B, tmp)
-        Bcon += contract('jnic,ijnc->', tmp, ERI[o,o,o,v])
+        Bcon += contract('jnic,ijnc->', tmp, hbar.Hooov)
 
         tmp  = contract('ia,nkba->nkbi', X1_C, Y2_A)
         tmp  = contract('jkbc,nkbi->jnci', X2_B, tmp)
-        Bcon += contract('jnci,jinc->', tmp, ERI[o,o,o,v])
-
+        Bcon += contract('jnci,jinc->', tmp, hbar.Hooov)
+        
         return Bcon
 
     def comp_lLHXYZ(self, X2_A, X1_B, X1_C):
@@ -2283,7 +2505,7 @@ class ccresponse(object):
         # BCA
         self.LAX6 = self.comp_LAX(X1_A, X2_A, Y1_B, Y2_B, pertbar_C)
 
-        self.hyper += self.LAX + self.LAX2 + self.LAX3 + self.LAX4 + self.LAX5 + self.LAX6
+        self.hyper = self.LAX + self.LAX2 + self.LAX3 + self.LAX4 + self.LAX5 + self.LAX6
 
         self.Fz1 = 0
         self.Fz2 = 0
@@ -2297,7 +2519,7 @@ class ccresponse(object):
         #L2, X2, X1 
         self.Fz3 = self.comp_Fz(X1_A, X1_B, X2_A, X2_B, pertbar_C)
         
-        self.hyper += self.Fz1 + self.Fz2 + self.Fz3
+        self.hyper = self.Fz1 + self.Fz2 + self.Fz3
 
         self.Bcon1 = 0 
         self.Bcon2 = 0 
@@ -2691,7 +2913,7 @@ class ccresponse(object):
             if self.ccwfn.local is not None:
                 inc1, inc2 = self.ccwfn.Local.filter_pertamps(r1, r2, self.eps_occ, self.eps_vir, omega)
                 self.X1 += inc1
-                #self.X2 += inc2
+                self.X2 += inc2
             
                 rms = contract('ia,ia->', np.conj(inc1/(Dia)), inc1/(Dia))
                 rms += contract('ijab,ijab->', np.conj(inc2/(Dijab)), inc2/(Dijab))
@@ -2747,11 +2969,11 @@ class ccresponse(object):
         eps_occ = np.diag(self.cchbar.Hoo)
         eps_lvir = []
         #for i in range(no):
-            #ii = i *no + i 
-           #for j in range(no):
-                #ij = i*no + j 
-                #eps_lvir.append(np.diag(self.cchbar.Hvv[ij]))
-                #print("eps_lvir_ij", ij, self.cchbar.Hvv[ij])
+        #    #ii = i *no + i 
+        #   for j in range(no):
+        #        ij = i*no + j 
+        #        eps_lvir.append(np.diag(self.cchbar.Hvv[ij]))
+        #        #print("eps_lvir_ij", ij, self.cchbar.Hvv[ij])
         contract =self.contract
 
         Q = self.Local.Q
@@ -2801,13 +3023,13 @@ class ccresponse(object):
                 ii = i * no + i
                  
                 #commented out error prone component
-                self.X1[i] += r1[i] / (eps_occ[i]) #  - eps_lvir[ii].reshape(-1,)) # + omega)
+                self.X1[i] += r1[i] / (eps_occ[i])#  - eps_lvir[ii].reshape(-1,)) # + omega)
                 rms += contract('a,a->', np.conj(r1[i] / (eps_occ[i])), (r1[i] / (eps_occ[i])))
 
                 for j in range(no):
                     ij = i*no + j
  
-                    #self.X2[ij] += r2[ij] / (eps_occ[i] + eps_occ[j])
+                    self.X2[ij] += r2[ij] / (eps_occ[i] + eps_occ[j])
                     rms += contract('ab,ab->', np.conj(r2[ij]/(eps_occ[i] + eps_occ[j])), r2[ij]/(eps_occ[i] + eps_occ[j]))
 
             rms = np.sqrt(rms)
@@ -2887,7 +3109,7 @@ class ccresponse(object):
             if self.ccwfn.local is not None:
                 inc1, inc2 = self.ccwfn.Local.filter_pertamps(r1, r2, self.eps_occ, self.eps_vir, omega)
                 self.Y1 += inc1
-                #self.Y2 += inc2
+                self.Y2 += inc2
             
                 rms = contract('ia,ia->', np.conj(inc1/(Dia)), inc1/(Dia))
                 rms += contract('ijab,ijab->', np.conj(inc2/(Dijab)), inc2/(Dijab))
@@ -3012,7 +3234,7 @@ class ccresponse(object):
                 for j in range(no):
                     ij = i*no + j
 
-                    #self.Y2[ij] += r2[ij] / (eps_occ[i] + eps_occ[j])
+                    self.Y2[ij] += r2[ij] / (eps_occ[i] + eps_occ[j])
                     rms += contract('ab,ab->', np.conj(r2[ij]/(eps_occ[i] + eps_occ[j])), r2[ij]/(eps_occ[i] + eps_occ[j]))
 
             rms = np.sqrt(rms)
@@ -3358,8 +3580,8 @@ class ccresponse(object):
         tmp  = 2.0 * contract('mnef,nf->me', X2, l1)
         tmp  -= contract('mnfe,nf->me', X2, l1)
         r_Y1 += contract('imae,me->ia', L[o,o,v,v], tmp)
-        #r_Y1 -= contract('ni,na->ia', cclambda.build_Goo(X2, L[o,o,v,v]), l1)
-        #r_Y1 += contract('ie,ea->ia', l1, cclambda.build_Gvv(L[o,o,v,v], X2))
+        r_Y1 -= contract('ni,na->ia', cclambda.build_Goo(X2, L[o,o,v,v]), l1)
+        r_Y1 += contract('ie,ea->ia', l1, cclambda.build_Gvv(L[o,o,v,v], X2))
 
         ## <O|L2(0)|[Hbar(0), X1]|phi^a_i> good
         ## can reorganize thesenext four to two swapaxes type contraction
@@ -3390,18 +3612,18 @@ class ccresponse(object):
         tmp  += 0.5 * contract('mino,noea->iema', hbar.Hoooo, l2)
         r_Y1 += contract('iema,me->ia', tmp, X1)
 
-        #tmp  =  contract('nb,fb->nf', X1, cclambda.build_Gvv(l2, t2))
-        #r_Y1 += contract('inaf,nf->ia', L[o,o,v,v], tmp)
-        #tmp  =  contract('me,fa->mefa', X1, cclambda.build_Gvv(l2, t2))
-        #r_Y1 += contract('mief,mefa->ia', L[o,o,v,v], tmp)
+        tmp  =  contract('nb,fb->nf', X1, cclambda.build_Gvv(l2, t2))
+        r_Y1 += contract('inaf,nf->ia', L[o,o,v,v], tmp)
+        tmp  =  contract('me,fa->mefa', X1, cclambda.build_Gvv(l2, t2))
+        r_Y1 += contract('mief,mefa->ia', L[o,o,v,v], tmp)
         #tmp  =  contract('me,ni->meni', X1, cclambda.build_Goo(t2, l2))
         #r_Y1 -= contract('meni,mnea->ia', tmp, L[o,o,v,v])
-        #tmp  =  contract('jf,nj->fn', X1, cclambda.build_Goo(t2, l2))
-        #r_Y1 -= contract('inaf,fn->ia', L[o,o,v,v], tmp)
+        tmp  =  contract('jf,nj->fn', X1, cclambda.build_Goo(t2, l2))
+        r_Y1 -= contract('inaf,fn->ia', L[o,o,v,v], tmp)
 
         # <O|L2(0)|[Hbar(0), X2]|phi^a_i>
-        #r_Y1 -= contract('mi,ma->ia', cclambda.build_Goo(X2, l2), hbar.Hov)
-        #r_Y1 += contract('ie,ea->ia', hbar.Hov, cclambda.build_Gvv(l2, X2))
+        r_Y1 -= contract('mi,ma->ia', cclambda.build_Goo(X2, l2), hbar.Hov)
+        r_Y1 += contract('ie,ea->ia', hbar.Hov, cclambda.build_Gvv(l2, X2))
         tmp   = contract('imfg,mnef->igne', l2, X2)
         r_Y1 -= contract('igne,gnea->ia', tmp, hbar.Hvovv)
         tmp   = contract('mifg,mnef->igne', l2, X2)
@@ -3415,8 +3637,8 @@ class ccresponse(object):
         r_Y1 += contract('nifg,ganf->ia', l2, tmp)
 
         ##can combine the next two to swapaxes type contraction
-        #r_Y1 -= 2.0 * contract('giea,ge->ia', hbar.Hvovv, cclambda.build_Gvv(X2, l2))
-        #r_Y1 += contract('giae,ge->ia', hbar.Hvovv, cclambda.build_Gvv(X2, l2))
+        r_Y1 -= 2.0 * contract('giea,ge->ia', hbar.Hvovv, cclambda.build_Gvv(X2, l2))
+        r_Y1 += contract('giae,ge->ia', hbar.Hvovv, cclambda.build_Gvv(X2, l2))
         tmp   = contract('oief,mnef->oimn', l2, X2)
         r_Y1 += contract('oimn,mnoa->ia', tmp, hbar.Hooov)
         tmp   = contract('mofa,mnef->oane', l2, X2)
@@ -3425,8 +3647,8 @@ class ccresponse(object):
         r_Y1 += contract('miof,oamf->ia', hbar.Hooov, tmp)
 
         ##can combine the next two to swapaxes type contraction
-        #r_Y1 -= 2.0 * contract('mioa,mo->ia', hbar.Hooov, cclambda.build_Goo(X2, l2))
-        #r_Y1 += contract('imoa,mo->ia', hbar.Hooov, cclambda.build_Goo(X2, l2))
+        r_Y1 -= 2.0 * contract('mioa,mo->ia', hbar.Hooov, cclambda.build_Goo(X2, l2))
+        r_Y1 += contract('imoa,mo->ia', hbar.Hooov, cclambda.build_Goo(X2, l2))
 
         ##can combine the next two to swapaxes type contraction
         tmp   = -2.0 * contract('imoe,mnef->ionf', hbar.Hooov, X2)
@@ -3458,6 +3680,117 @@ class ccresponse(object):
 
             # <O|A_bar|phi^a_i> good
             r_Y1 = 2.0 * lpertbar.Aov[ii][i].copy()
+
+            #collecting Gvv terms here
+            for m in range(no): 
+                for n in range(no):
+                    nn = n*no + n
+                    mn = m*no + n 
+                    iimn = ii*(no*no) + mn
+       
+                    #read the resulting index more carefully in Gvv its ae but need ea 
+                    Gvv = -1.0 * contract('ab,eb -> ea', QL[ii].T @ L[m,n,v,v] @ QL[mn], X2[mn])
+            
+                    r_Y1 = r_Y1 + contract('e, ea ->a', Sijmn[iimn].T @ l1[i], Gvv) 
+
+
+            for n in range(no): 
+                nn = n*no + n
+                for m in range(no): 
+                    for _o in range(no):
+                        mo = m*no + _o
+                        nnmo = nn*(no*no) + mo
+  
+                        Gvv = -1.0 * contract('bc,fc -> fb', Sijmn[nnmo] @ l2[mo], t2[mo]) 
+                        tmp = contract('b, fb ->f', X1[n], Gvv)  
+                        r_Y1 = r_Y1 + contract('af, f -> a', QL[ii].T @ L[i,n,v,v] @ QL[mo], tmp) 
+
+            for m in range(no): 
+                mm = m*no + m 
+                for n in range(no):
+                    for _o in range(no):
+                        _no = n*no + _o 
+                        iino = ii*(no*no) + _no                      
+
+                        Gvv = -1.0 * contract('ac,fc -> fa', Sijmn[iino] @ l2[_no], t2[_no]) 
+                        tmp = contract('e, fa -> efa', X1[m], Gvv) 
+                        r_Y1 = r_Y1 + contract('ef, efa -> a', QL[mm].T @ L[m,i,v,v] @ QL[_no], tmp)             
+
+            for m in range(no):
+                for n in range(no):
+                    mn = m*no + n
+                    iimn = ii*(no*no) + mn
+
+                    Gvv = -1.0 * contract('ab, eb -> ea', Sijmn[iimn] @ l2[mn], X2[mn])
+                    r_Y1 = r_Y1 + contract('e, ea -> a', hbar.Hov[mn][i], Gvv)
+
+            for m in range(no):
+                for n in range(no):
+                    mn = m*no + n
+                    iimn = ii*(no*no) + mn
+
+                    Hvovv = contract('gea, gG -> Gea', ERI[v,i,v,v], QL[mn]) 
+                    Hvovv_34swap = contract('Gae, aA -> GAe', Hvovv, QL[ii]) 
+                    Hvovv_34swap = contract('GAe, eE -> GAE', Hvovv_34swap, QL[mn])
+                    Hvovv = contract('Gea, eE -> GEa', Hvovv, QL[mn]) 
+                    Hvovv = contract('GEa, aA -> GEA', Hvovv, QL[ii])                    
+
+                    for _o in range(no): 
+                        oo = _o*no +_o 
+                        mnoo = mn*(no*no) + oo
+
+                        Hvovv = Hvovv - contract('g, ea ->gea', Sijmn[mnoo] @ t1[_o], QL[mn].T @ ERI[_o,i,v,v] @ QL[ii]) 
+                        Hvovv_34swap = Hvovv_34swap - contract('g, ea ->gea', Sijmn[mnoo] @ t1[_o], QL[ii].T @ ERI[_o,i,v,v] @ QL[mn]) 
+                     
+                    Gvv = -1.0 * contract('eb, gb -> ge', X2[mn], l2[mn])
+                    r_Y1 = r_Y1 + contract('gea, ge -> a', -2.0 * Hvovv + Hvovv_34swap.swapaxes(1,2), Gvv)            
+
+            #Goo terms 
+            for n in range(no):
+                for m in range(no): 
+                    X_tmp = contract('e,ea ->a', X1[m], QL[mm].T @ L[m,n,v,v] @ QL[ii]) 
+                    for _o in range(no):
+                        _no = n*no + _o
+                        io = i*no + _o
+                        iono = io*(no*no) + _no
+                        Goo = contract('ab, ab ->', Sijmn[iono] @ t2[_no] @ Sijmn[iono].T, l2[io]) 
+                        #r_Y1 = r_Y1 - (Goo * X_tmp)  
+
+            for j in range(no):
+                jj = j*no +j 
+                for n in range(no):
+                    for m in range(no):
+                        nm = n*no + m 
+                        jm = j*no + m
+                        nmjm = nm*(no*no) + jm
+
+                        Goo = contract('ab, ab->', Sijmn[nmjm].T @ t2[nm] @ Sijmn[nmjm], l2[jm]) 
+                        tmp = X1[j] * Goo
+                        r_Y1 = r_Y1 - contract('f, af ->a', tmp, QL[ii].T @ L[i,n,v,v] @ QL[jj])
+
+            for m in range(no):
+                for n in range(no): 
+                    mn = m*no +n 
+                    _in = i*no + n 
+                    mnin = mn*(no*no) + _in
+
+                    Goo = contract('ab, ab ->', X2[mn], Sijmn[mnin] @ l2[_in] @ Sijmn[mnin].T)
+                    r_Y1 = r_Y1 - (Goo * hbar.Hov[ii][m]) 
+
+            for m in range(no):
+                for _o in range(no):
+                    oo = _o*no + _o
+                    for n in range(no):
+                        mn = m*no + n
+                        on = _o*no + n
+                        mnon = mn*(no*no) + on 
+
+                        Goo = contract('ab, ab ->', X2[mn], Sijmn[mnon] @ l2[on] @ Sijmn[mnon].T ) 
+                        Hooov = ERI[m,i,_o,v] @ QL[ii]
+                        Hooov = Hooov + contract('f, af -> a', t1[_o], QL[ii].T @ ERI[i,m,v,v] @ QL[oo])
+                        Hooov_12swap = ERI[i,m,_o,v] @ QL[ii]
+                        Hooov_12swap = Hooov_12swap + contract('f, af -> a', t1[_o], QL[ii].T @ ERI[m,i,v,v] @ QL[oo])
+                        r_Y1 = r_Y1 + ((-2.0 * Hooov + Hooov_12swap) * Goo) 
 
             # <O|L1(0)|A_bar|phi^a_i> good
             for m in range(no):
@@ -3571,15 +3904,17 @@ class ccresponse(object):
                     nmmm = nm*(no*no) + mm
                     nnmn = nn*(no*no) + mn
                     iini = ii*(no*no)+ ni
+                    iinn = ii*(no*no) + nn
+                    iimn = ii*(no*no) + mn
 
                     tmp = 2.0 * contract('ef, f -> e', X2[mn], l1[n] @ Sijmn[nnmn]) 
                     tmp =  tmp - contract('fe, f -> e', X2[mn], l1[n] @ Sijmn[nnmn])
                     Loovv = QL[ii].T @ L[i,m,v,v] @ QL[mn] 
                     r_Y1 = r_Y1 + contract('ae, e -> a', Loovv, tmp) 
- 
-        #r_Y1 -= contract('ni,na->ia', cclambda.build_Goo(X2, L[o,o,v,v]), l1)
-        #r_Y1 += contract('ie,ea->ia', l1, cclambda.build_Gvv(L[o,o,v,v], X2))
-
+                
+                    Goo = contract('ab, ab ->', X2[nm], self.Local.Loovv[nm][i,m]) 
+                    r_Y1 = r_Y1 - (Goo * l1[n] @ Sijmn[iinn]) 
+                    
                     # <O|L2(0)|[Hbar(0), X1]|phi^a_i>
                     #e_mm a_ii
                     Hovov = QL[ni].T @ ERI[m,v,n,v] @ QL[ii]
@@ -3640,7 +3975,6 @@ class ccresponse(object):
 
                     tmp1 = tmp1 - contract('ef,fa -> ea', Sijmn[inmm].T @ l2[_in], Hovvo) 
 
-                    #good stopping point
                     Hovvo = QL[nm].T @ ERI[i,v,v,n] @ QL[mm]
                     ERIovvv = contract('fec, fF -> Fec', ERI[i,v,v,v], QL[nm])
                     ERIovvv = contract('Fec, eE-> FEc', ERIovvv, QL[mm])
@@ -3759,11 +4093,17 @@ class ccresponse(object):
             
                 r_Y1 = r_Y1 + contract('ea,e ->a', tmp1, X1[m])
 
-        #tmp  =  contract('nb,fb->nf', X1, cclambda.build_Gvv(l2, t2))
-        #r_Y1 += contract('inaf,nf->ia', L[o,o,v,v], tmp)
-        #tmp  =  contract('me,fa->mefa', X1, cclambda.build_Gvv(l2, t2))
-        #r_Y1 += contract('mief,mefa->ia', L[o,o,v,v], tmp)
-        #tmp  =  contract('me,ni->meni', X1, cclambda.build_Goo(t2, l2))
+                for n in range(no): 
+                    for _o in range(no): 
+                        _no = n*no + _o
+                        io = i*no + _o
+                        iono = io*(no*no) + _no
+
+                        #Goo = contract('ab, ab ->', Sijmn[iono] @ t2[_no] @ Sijmn[iono].T, l2[io])
+                        #tmp = X1[m] * Goo 
+                        #r_Y1 = r_Y1 - contract('e, ea ->', tmp, QL[mm].T @ L[m,n,v,v] @ QL[ii]) 
+        
+#tmp  =  contract('me,ni->meni', X1, cclambda.build_Goo(t2, l2))
         #r_Y1 -= contract('meni,mnea->ia', tmp, L[o,o,v,v])
         #tmp  =  contract('jf,nj->fn', X1, cclambda.build_Goo(t2, l2))
         #r_Y1 -= contract('inaf,fn->ia', L[o,o,v,v], tmp)
@@ -3883,7 +4223,7 @@ class ccresponse(object):
                         Hooov_12swap = Hooov_12swap + contract('f, ef -> e', t1[_o], QL[mn].T @ ERI[i,m,v,v] @ QL[oo])
                         tmp = contract('e, ef -> f', -2.0 * Hooov + Hooov_12swap, X2[mn]) 
                         r_Y1 = r_Y1 + contract('f, fa -> a', tmp, Sijmn[nomn].T @ l2[_no] @ Sijmn[noii]) 
- 
+            #r_Y1 = r_Y1 + contract('e, ea->a', l1[i], Gvv)
             in_Y1.append(r_Y1)
         return in_Y1
 
@@ -3952,7 +4292,45 @@ class ccresponse(object):
 
             r_Y1[i] = r_Y1[i] + (omega * Y1[i])
             r_Y1[i] = r_Y1[i] + contract('e, ea -> a', Y1[i], hbar.Hvv[ii]) 
-            r_lY1 = 0 
+            r_lY1 = 0
+
+            #collecting Gvv terms here
+            for m in range(no):
+                for n in range(no):
+                    mn = m*no + n
+                    iimn = ii*(no*no) + mn
+
+                    Hvovv = contract('efa, eE -> Efa', ERI[v,i,v,v], QL[mn])
+                    Hvovv_34swap = contract('Eaf, aA -> EAf', Hvovv, QL[ii])
+                    Hvovv_34swap = contract('EAf, fF -> EAF', Hvovv_34swap, QL[mn])
+                    Hvovv = contract('Efa, fF -> EFa', Hvovv, QL[mn])
+                    Hvovv = contract('EFa, aA -> EFA', Hvovv, QL[ii])
+
+                    for _o in range(no):
+                        oo = _o*no +_o
+                        mnoo = mn*(no*no) + oo
+
+                        Hvovv = Hvovv - contract('g, ea ->gea', Sijmn[mnoo] @ t1[_o], QL[mn].T @ ERI[_o,i,v,v] @ QL[ii])
+                        Hvovv_34swap = Hvovv_34swap - contract('g, ea ->gea', Sijmn[mnoo] @ t1[_o], QL[ii].T @ ERI[_o,i,v,v] @ QL[mn])
+
+                    Gvv = -1.0 * contract('fb, eb -> ef', t2[mn], Y2[mn])
+                    r_lY1 = r_lY1 + contract('efa, ef -> a', -2.0 * Hvovv + Hvovv_34swap.swapaxes(1,2), Gvv)
+
+            for m in range(no):
+                for _o in range(no):
+                    mo = m*no + _o
+                    for n in range(no):
+                        nn = n*no + n
+                        _no = n*no + _o
+                        mono = mo*(no*no) + _no    
+
+                        Goo = contract('ab, ab ->', Sijmn[mono].T @ t2[mo] @ Sijmn[mono], Y2[_no])
+                        Hooov = ERI[m,i,n,v] @ QL[ii]
+                        Hooov = Hooov + contract('f, af -> a', t1[n], QL[ii].T @ ERI[i,m,v,v] @ QL[nn])
+                        Hooov_12swap = ERI[i,m,n,v] @ QL[ii]
+                        Hooov_12swap = Hooov_12swap + contract('f, af -> a', t1[n], QL[ii].T @ ERI[m,i,v,v] @ QL[nn])
+                        r_lY1 = r_lY1 + ((-2.0 * Hooov + Hooov_12swap) * Goo)
+ 
             for m in range(no): 
                 mm = m*no + m
                 im = i*no + m 
@@ -4082,12 +4460,12 @@ class ccresponse(object):
         r_Y1 -= contract('iemn,mnae->ia', hbar.Hovoo, Y2)
 
         ##can combine the next two to swapaxes type contraction
-        #r_Y1 -= 2.0 * contract('eifa,ef->ia', hbar.Hvovv, cclambda.build_Gvv(t2, Y2))
-        #r_Y1 += contract('eiaf,ef->ia', hbar.Hvovv, cclambda.build_Gvv(t2, Y2))
+        r_Y1 -= 2.0 * contract('eifa,ef->ia', hbar.Hvovv, cclambda.build_Gvv(t2, Y2))
+        r_Y1 += contract('eiaf,ef->ia', hbar.Hvovv, cclambda.build_Gvv(t2, Y2))
 
         ##can combine the next two to swapaxes type contraction
-        #r_Y1 -= 2.0 * contract('mina,mn->ia', hbar.Hooov, cclambda.build_Goo(t2, Y2))
-        #r_Y1 += contract('imna,mn->ia', hbar.Hooov, cclambda.build_Goo(t2, Y2))
+        r_Y1 -= 2.0 * contract('mina,mn->ia', hbar.Hooov, cclambda.build_Goo(t2, Y2))
+        r_Y1 += contract('imna,mn->ia', hbar.Hooov, cclambda.build_Goo(t2, Y2))
 
         return r_Y1
    
@@ -4178,10 +4556,9 @@ class ccresponse(object):
 
         ##temp intermediate?
         r_Y2 -= contract('in,jnba->ijab', cclambda.build_Goo(L[o,o,v,v], X2), l2)
-        #r_Y2 += contract('ijfb,af->ijab', l2, cclambda.build_Gvv(X2, L[o,o,v,v]))
-        #these two terms commented out in local
-        #r_Y2 += contract('ijae,be->ijab', L[o,o,v,v], cclambda.build_Gvv(X2, l2))
-        #r_Y2 -= contract('imab,jm->ijab', L[o,o,v,v], cclambda.build_Goo(l2, X2))
+        r_Y2 += contract('ijfb,af->ijab', l2, cclambda.build_Gvv(X2, L[o,o,v,v]))
+        r_Y2 += contract('ijae,be->ijab', L[o,o,v,v], cclambda.build_Gvv(X2, l2))
+        r_Y2 -= contract('imab,jm->ijab', L[o,o,v,v], cclambda.build_Goo(l2, X2))
         tmp   = contract('nifb,mnef->ibme', l2, X2)
         r_Y2 -= contract('ibme,mjea->ijab', tmp, L[o,o,v,v])
         tmp   = 2.0 * contract('njfb,mnef->jbme', l2, X2)
@@ -4240,17 +4617,15 @@ class ccresponse(object):
                     #Goo_LX[i,m] += contract('ab,ab->',self.Local.Loovv[ij][i,j], tmp)
 
         #Gvv terms needed for Expression 5, Term 7
-        self.Gae = []      
-        self.Gaf = []
-        for i in range(no):
-            for j in range(no):
-                ij = i*no + j 
+        #for i in range(no):
+            #for j in range(no):
+                #ij = i*no + j 
                 #Gvv term needed for Expression 5, Term 7
-                self.Gaf.append(-1.0 * contract('fb, ab-> af', X2[ij], self.Local.Loovv[ij][i,j])) 
+                #self.Gaf.append(-1.0 * contract('fb, ab-> af', X2[ij], self.Local.Loovv[ij][i,j])) 
                 #print("Gaf", self.Gaf[ij].shape)
 
                 #Gvv term needed for Expression 5, Term 8 
-                self.Gae.append(-1.0 * contract('eb, ab->ae', X2[ij], l2[ij]))
+                #self.Gae.append(-1.0 * contract('eb, ab->ae', X2[ij], l2[ij]))
 
         for i in range(no):
             ii = i*no + i 
@@ -4259,10 +4634,10 @@ class ccresponse(object):
                 jj = j*no + j
                 
                 #Gvv term needed for Expression 5, Term 7
-                Gaf = contract('fb, ab->af', X2[ij], self.Local.Loovv[ij][i,j]) 
+                #Gaf = contract('fb, ab->af', X2[ij], self.Local.Loovv[ij][i,j]) 
  
                 #Gvv term needed for Expression 5, Term 8 
-                Gae = contract('eb, ab->ae', X2[ij], l2[ij])
+                #Gae = contract('eb, ab->ae', X2[ij], l2[ij])
 
                 # <O|L1(0)|A_bar|phi^ab_ij>, Eqn 162
                 r_Y2  = 2.0 * contract('a,b->ab', l1[i] @ Sijii[ij].T, lpertbar.Aov[ij][j].copy())
@@ -4271,6 +4646,33 @@ class ccresponse(object):
                 # <O|L2(0)|A_bar|phi^ab_ij>, Eqn 163
                 r_Y2 += contract('eb,ea->ab', l2[ij], lpertbar.Avv[ij])
                
+                #collecting Gvv terms here
+                for m in range(no):
+                    for n in range(no):
+                        mn = m*no + n
+                        ijmn = ij*(no*no) + mn
+
+                        Gvv = -1.0 * contract('fe, ae ->af', X2[mn], QL[ij].T @ L[m,n,v,v] @ QL[mn])
+                        r_Y2 = r_Y2 + contract('fb, af -> ab', Sijmn[ijmn].T @ l2[ij], Gvv)                            
+
+                for m in range(no):
+                    for n in range(no):
+                        mn = m*no + n
+                        ijmn = ij*(no*no) + mn 
+
+                        Gvv = -1.0 * contract('ef, bf -> be', X2[mn], Sijmn[ijmn] @ l2[mn])
+                        r_Y2 = r_Y2 + contract('ae, be -> ab', QL[ij].T @ L[i,j,v,v] @ QL[mn], Gvv)             
+       
+                #last Goo here
+                for m in range(no): 
+                    for n in range(no): 
+                        mn = m*no + n 
+                        jn = j*no + n 
+                        mnjn = mn*(no*no) + jn
+
+                        Goo = contract('ab, ab ->', Sijmn[mnjn] @ l2[jn] @ Sijmn[mnjn].T, X2[mn])
+                        r_Y2 = r_Y2 - (self.Local.Loovv[ij][i,m] * Goo)             
+
                 for m in range(no):
                     mj = m*no + j
                     ijm = ij*no + m
@@ -4423,13 +4825,6 @@ class ccresponse(object):
                         #Goo term for Term 6   
                         Gin[i,n] += contract('ef,ef->', QL[nm].T @ L[i,m,v,v] @ QL[nm], X2[nm]) 
  
-                        #Term 7
-                        #print("Gaf_mn", self.Gaf[mn].shape)
-                        tmp = Sijmn[ijmn] @ self.Gaf[mn] @ Sijmn[ijmn].T 
-                        #print("tmp",tmp.shape)
-                        #print("l2", l2[ij].shape)
-                        #r_Y2 = r_Y2 + contract('fb,af->ab', l2[ij], tmp) 
-
                 for n in range(no):
                     ijn = ij*no + n
                     jn = j*no + n  

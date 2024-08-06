@@ -857,7 +857,7 @@ class Local(object):
             Y = self.L[ii].T @ X
   
             for a in range(dim[ii]):
-                Y[a] = Y[a]/(eps_occ[i]) # - eps_vir[ii][a] + omega)
+                Y[a] = Y[a]/(eps_occ[i]) #  - eps_vir[ii][a]) # + omega)
 
             X = self.L[ii] @ Y
             t1[i] = self.Q[ii] @ X

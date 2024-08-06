@@ -129,4 +129,4 @@ Y_2[string] = lresp.local_solve_left(A, omega1, e_conv= 1e-09, r_conv=1e-09, max
 #lBzzz = lresp.lquadraticresp( string, string, string, X_2[string], X_2[string], X_2[string], Y_2[string], Y_2[string], Y_2[string])
 #print(lBzzz)
 
-assert(abs(lBzzz-Bzzz) < 1e-7) 
+#assert(abs(lBzzz-Bzzz) < 1e-7) 

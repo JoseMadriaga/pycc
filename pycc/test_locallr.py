@@ -16,22 +16,23 @@ import pycc
 
 import sys
 #sys.path.append("/Users/jattakumi/pycc/pycc/")
-sys.path.append("/Users/josemarcmadriaga/pycc_josh/pycc/pycc")
+sys.path.append("/Users/josemarcmadriaga/pycc_present/pycc/pycc")
 from data.molecules import *
 
 psi4.set_memory('2 GiB')
 psi4.core.set_output_file('output.dat', False)
-psi4.set_options({'basis': '3-21G',
-                  'scf_type': 'direct',
-                  'e_convergence': 1e-13,
-                  'd_convergence': 1e-13,
-                  'r_convergence': 1e-13
+psi4.set_options({'basis': 'cc-pvdz',
+                  'scf_type': 'pk',
+                  'freeze_core': 'true',
+                  'e_convergence': 1e-08,
+                  'd_convergence': 1e-08,
+                  'r_convergence': 1e-08
 })
 mol = psi4.geometry(moldict["(H2)_2"])
 rhf_e, rhf_wfn = psi4.energy('SCF', return_wfn=True)
 
-e_conv = 1e-13
-r_conv = 1e-13
+e_conv = 1e-08
+r_conv = 1e-08
 
 # just going grab conventional hbar
 #conv_cc = ccwfn(rhf_wfn)
@@ -39,7 +40,7 @@ r_conv = 1e-13
 #conv_hbar = cchbar(conv_cc)
 
 #sim 
-cc_sim = pycc.ccwfn(rhf_wfn, local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-06, filter = True)
+cc_sim = pycc.ccwfn(rhf_wfn, local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-05, filter = True)
 ecc = cc_sim.solve_cc(e_conv, r_conv)
 hbar_sim = pycc.cchbar(cc_sim)
 
@@ -73,60 +74,23 @@ density = pycc.ccdensity(cc_sim, cclambda_sim)
 resp = pycc.ccresponse(density)
 
 omega1 = 0.0656
+omega2 = 0.0656
 
-X_1 = {}
-X_2 = {}
-Y_1 = {}
-Y_2 = {}
-
-string = "MU_Z"
-
-A = resp.pertbar[string]
-
-print("solving for X")
-X_2[string] = resp.solve_right(A, omega1, e_conv=1e-13, r_conv=1e-13, maxiter=200)
-print("solving for Y") 
-Y_2[string] = resp.solve_left(A, omega1, e_conv=1e-13, r_conv=1e-13, maxiter=200)
-
-#Bzzz
-Bzzz = resp.quadraticresp(string, string, string, X_2[string], X_2[string], X_2[string], Y_2[string], Y_2[string], Y_2[string])
-print(Bzzz)
+resp.pert_quadresp(omega1, omega2)
+resp.hyperpolar()
 
 #local
-lcc = pycc.ccwfn(rhf_wfn,  local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-06, filter=False)
-lecc = lcc.lccwfn.solve_lcc(e_conv, r_conv)
-lhbar = pycc.cchbar(lcc)
-lcclambda = pycc.cclambda(lcc, lhbar)
-llecc = lcclambda.solve_llambda(e_conv, r_conv)
-ldensity = pycc.ccdensity(lcc, lcclambda)
+#lcc = pycc.ccwfn(rhf_wfn,  local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-06, filter=False)
+#lecc = lcc.lccwfn.solve_lcc(e_conv, r_conv)
+#lhbar = pycc.cchbar(lcc)
+#lcclambda = pycc.cclambda(lcc, lhbar)
+#llecc = lcclambda.solve_llambda(e_conv, r_conv)
+#ldensity = pycc.ccdensity(lcc, lcclambda)
 
-lresp = pycc.ccresponse(ldensity)
+#lresp = pycc.ccresponse(ldensity)
 
-omega1 = 0.0656
+#omega1 = 0.0656
+#omega2 = 0.0656
 
-
-# Creating dictionaries
-# X_1 = X(-omega); X_2 = X(omega)
-# Y_1 = Y(-omega); Y_2 = Y(omega)
-# X_neg = X1(-omega) , X2(-omega)
-# X_pos, Y_neg, Y_pos
-X_1 = {}
-X_2 = {}
-Y_1 = {}
-Y_2 = {}
-
-string = "MU_Z"
-
-A = lresp.lpertbar[string]
-
-print("solving for X") 
-X_2[string] = lresp.local_solve_right(A, omega1, hbar_sim, e_conv=1e-13, r_conv=1e-13, maxiter = 200) 
-print("solving for Y") 
-Y_2[string] = lresp.local_solve_left(A, omega1, e_conv= 1e-13, r_conv=1e-13, maxiter =200)
-    
-
-#Bzzz
-lBzzz = lresp.lquadraticresp( string, string, string, X_2[string], X_2[string], X_2[string], Y_2[string], Y_2[string], Y_2[string])
-print(lBzzz)
-
-assert(abs(lBzzz-Bzzz) < 1e-7) 
+#lresp.pert_lquadresp(omega1, omega2)
+#lresp.lhyperpolar()

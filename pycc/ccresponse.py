@@ -58,6 +58,7 @@ class ccresponse(object):
         # self.l1 = self.cclambda.l1
         # self.l2 = self.cclambda.l2
         self.no = self.ccwfn.no
+        self.psuedoresponse = []
 
         if self.ccwfn.local is not None and self.ccwfn.filter is not True: 
             self.lccwfn = ccdensity.lccwfn
@@ -67,6 +68,20 @@ class ccresponse(object):
             self.contract = self.ccwfn.contract
             self.no = self.ccwfn.no
             self.Local = self.ccwfn.Local       
+
+            #Q = self.Local.Q
+            #L = []
+            #self.QL = []
+            self.eps_occ = np.diag(self.cchbar.Hoo)
+            self.eps_lvir = []
+            for i in range(self.ccwfn.no):
+                for j in range(self.ccwfn.no):
+                    ij = i*self.ccwfn.no + j
+                    #print(self.cchbar.Hvv[ij].shape, Q[ij].shape)
+                    #eval, evec = np.linalg.eigh(self.cchbar.Hvv[ij])
+                    #self.QL.append(Q[ij] @ evec)
+                    #self.eps_lvir.append(eval)
+                    self.eps_lvir.append(np.diag(self.cchbar.Hvv[ij])) 
 
             # Cartesian indices
             self.cart = ["X", "Y", "Z"]
@@ -436,6 +451,92 @@ class ccresponse(object):
             print("Solving left-hand perturbed wave function for %s:" % (pertkey))
             self.ccpert_om_sum_2nd_Y[pertkey] = self.solve_left(self.pertbar[pertkey], -omega_sum, e_conv, r_conv, maxiter, max_diis, start_diis)
 
+    def pert_lquadresp(self, omega1, omega2, e_conv=1e-12, r_conv=1e-12, maxiter=200, max_diis=7, start_diis=1):
+        """
+        Build first-order perturbed wave functions (left- and right-hand) for the electric dipole operator (Mu)
+
+        Parameters
+        ----------
+        omega1: float
+            First external field frequency.
+        omega2: float
+            Second external field frequency.
+        e_conv : float
+            convergence condition for the pseudoresponse value (default if 1e-13)
+        r_conv : float
+            convergence condition for perturbed wave function rmsd (default if 1e-13)
+        maxiter : int
+            maximum allowed number of iterations of the wave function equations (default is 100)
+        max_diis : int
+            maximum number of error vectors in the DIIS extrapolation (default is 8; set to 0 to deactivate)
+        start_diis : int
+            earliest iteration to start DIIS extrapolations (default is 1)
+
+        To Do
+        -----
+        Organize to only compute the neccesary perturbed wave functions.  
+        """
+
+        #dictionaries for perturbed waves functions
+        self.lccpert_om1_X = {}
+        self.lccpert_om2_X = {}
+        self.lccpert_om_sum_X = {}
+
+        self.lccpert_om1_2nd_X = {}
+        self.lccpert_om2_2nd_X = {}
+        self.lccpert_om_sum_2nd_X = {}
+
+        self.lccpert_om1_Y = {}
+        self.lccpert_om2_Y = {}
+        self.lccpert_om_sum_Y = {}
+    
+        self.lccpert_om1_2nd_Y = {}
+        self.lccpert_om2_2nd_Y = {}
+        self.lccpert_om_sum_2nd_Y = {}
+
+        omega_sum = -(omega1 + omega2)
+  
+        for axis in range(0, 3):
+
+            pertkey = "MU_" + self.cart[axis]
+
+            print("Solving right-hand perturbed wave function for omega1 %s:" % (pertkey))
+            self.lccpert_om1_X[pertkey] = self.local_solve_right(self.lpertbar[pertkey], omega1, e_conv, r_conv, maxiter) #, max_diis, start_diis)
+
+            print("Solving left-hand perturbed wave function for %s:" % (pertkey))
+            self.lccpert_om1_Y[pertkey] = self.local_solve_left(self.lpertbar[pertkey], omega1, e_conv, r_conv, maxiter) #, max_diis, start_diis)
+
+            print("Solving right-hand perturbed wave function for omega2 %s:" % (pertkey))
+            self.lccpert_om2_X[pertkey] = self.local_solve_right(self.lpertbar[pertkey], omega2, e_conv, r_conv, maxiter) #, max_diis, start_diis)
+
+            print("Solving left-hand perturbed wave function for %s:" % (pertkey))
+            self.lccpert_om2_Y[pertkey] = self.local_solve_left(self.lpertbar[pertkey], omega2, e_conv, r_conv, maxiter) #, max_diis, start_diis)
+
+            print("Solving right-hand perturbed wave function for omega_sum %s:" % (pertkey))
+            self.lccpert_om_sum_X[pertkey] = self.local_solve_right(self.lpertbar[pertkey], omega_sum, e_conv, r_conv, maxiter) #, max_diis, start_diis)
+
+            print("Solving left-hand perturbed wave function for %s:" % (pertkey))
+            self.lccpert_om_sum_Y[pertkey] = self.local_solve_left(self.lpertbar[pertkey], omega_sum, e_conv, r_conv, maxiter) #, max_diis, start_diis)
+
+            print("Solving right-hand perturbed wave function for -omega1 %s:" % (pertkey))
+            self.lccpert_om1_2nd_X[pertkey] = self.local_solve_right(self.lpertbar[pertkey], -omega1, e_conv, r_conv, maxiter) # , max_diis, start_diis)
+
+            print("Solving left-hand perturbed wave function for %s:" % (pertkey))
+            self.lccpert_om1_2nd_Y[pertkey] = self.local_solve_left(self.lpertbar[pertkey], -omega1, e_conv, r_conv, maxiter) #, max_diis, start_diis)
+
+            print("Solving right-hand perturbed wave function for -omega2 %s:" % (pertkey))
+            self.lccpert_om2_2nd_X[pertkey] = self.local_solve_right(self.lpertbar[pertkey], -omega2, e_conv, r_conv, maxiter) # , max_diis, start_diis)
+
+            print("Solving left-hand perturbed wave function for %s:" % (pertkey))
+            self.lccpert_om2_2nd_Y[pertkey] = self.local_solve_left(self.lpertbar[pertkey], -omega2, e_conv, r_conv, maxiter) #, max_diis, start_diis)
+
+            print("Solving right-hand perturbed wave function for -omega_sum %s:" % (pertkey))
+            self.lccpert_om_sum_2nd_X[pertkey] = self.local_solve_right(self.lpertbar[pertkey], -omega_sum, e_conv, r_conv, maxiter) #, max_diis, start_diis)
+
+            print("Solving left-hand perturbed wave function for %s:" % (pertkey))
+            self.lccpert_om_sum_2nd_Y[pertkey] = self.local_solve_left(self.lpertbar[pertkey], -omega_sum, e_conv, r_conv, maxiter) # , max_diis, start_diis)
+
+
     def lquadraticresp(self, pertkey_a, pertkey_b, pertkey_c, ccpert_X_A, ccpert_X_B, ccpert_X_C, ccpert_Y_A, ccpert_Y_B, ccpert_Y_C):
         contract = self.contract
         o = self.ccwfn.o
@@ -490,13 +591,13 @@ class ccresponse(object):
         # ABC
         self.LAX3 = self.comp_lLAX(X1_C, X2_C, Y1_A, Y2_A, pertbar_B)
         # CBA
-        self.LAX4 = self.comp_lLAX(X1_A, X2_A, Y1_C, Y2_C, pertbar_A)
+        self.LAX4 = self.comp_lLAX(X1_A, X2_A, Y1_C, Y2_C, pertbar_B)
         # ACB
         self.LAX5 = self.comp_lLAX(X1_B, X2_B, Y1_A, Y2_A, pertbar_C)
         # BCA
         self.LAX6 = self.comp_lLAX(X1_A, X2_A, Y1_B, Y2_B, pertbar_C)
       
-        self.hyper = self.LAX + self.LAX2 + self.LAX3 + self.LAX4 + self.LAX5 + self.LAX6
+        self.hyper += self.LAX + self.LAX2 + self.LAX3 + self.LAX4 + self.LAX5 + self.LAX6
 
         #Fz expressions
         #L1, X1, X1
@@ -506,7 +607,7 @@ class ccresponse(object):
         #L2, X2, X1 
         self.Fz3 = self.comp_lFz(X1_A, X1_B, X2_A, X2_B, pertbar_C)
 
-        self.hyper = self.Fz1 + self.Fz2 + self.Fz3
+        self.hyper += self.Fz1 + self.Fz2 + self.Fz3
         
         #Generate Hbars for Bcon here
         #self.lHooov()
@@ -525,7 +626,7 @@ class ccresponse(object):
         #CAB
         self.Bcon3 = self.comp_lBcon(Y1_C, X1_A, X1_B, Y2_C, X2_A, X2_B, hbar)
         
-        self.hyper = self.Bcon1 + self.Bcon2 + self.Bcon3
+        self.hyper += self.Bcon1 + self.Bcon2 + self.Bcon3
 
         self.G = 0
         
@@ -747,7 +848,7 @@ class ccresponse(object):
         #LHX1Y1Z2
         self.G += self.comp_lLHXYZ(X2_C, X1_A, X1_B)
  
-        #self.hyper = self.G
+        self.hyper += self.G
         return self.hyper
 
     def comp_lLAX(self, X1_C, X2_C, Y1_B, Y2_B, pertbar_A):
@@ -842,7 +943,6 @@ class ccresponse(object):
         l2 = self.cclambda.l2
 
         Fz = 0
-        value = 0
         Sijmn = self.Local.Sijmn
         for i in range(no):
             ii = i*no + i 
@@ -879,8 +979,7 @@ class ccresponse(object):
                     Fz -= contract('b,b->', tmp, pertbar_A.Aov[jm][i]) 
 
                 #first term
-                tmp2 = contract('a,a->', X1_B[i], pertbar_A.Aov[ii][j])
-                value += tmp1 
+                tmp2 = contract('a,a->', X1_B[i], pertbar_A.Aov[ii][j]) 
                 Fz -= tmp2*tmp1
                 
                 # <0|L2(0)[[A_bar,X2(B)],X1(C)]|0>
@@ -903,7 +1002,6 @@ class ccresponse(object):
  
                 #first term
                 Fz -= tmp2*tmp1
-        print("tmp value", value) 
         return Fz
 
     def comp_Fz(self, X1_B, X1_C, X2_B, X2_C, pertbar_A):
@@ -925,11 +1023,7 @@ class ccresponse(object):
         tmp = contract('ia,ja->ij', X1_B, pertbar_A.Aov)
         tmp2 = contract('jkbc,ikbc->ij', X2_C, l2)
         Fz -= contract('ij,ij->',tmp2,tmp)
-        value = 0
-        for i in range(self.ccwfn.no): 
-             for j in range(self.ccwfn.no):
-                 value += tmp2[i,j]
-        #print("tmp value", value)
+
         tmp = contract('ia,jkac->jkic', X1_B, l2)
         tmp = contract('jkbc,jkic->ib', X2_C, tmp)
         Fz -= contract('ib,ib->', tmp, pertbar_A.Aov)
@@ -1200,20 +1294,20 @@ class ccresponse(object):
                 tmp2 = contract('cb, b ->c', tmp, X1_B[j])
                 Bcon = Bcon + contract('c,c->', tmp2, X1_C[k])
 
-                Hvovv = contract('acb, aA -> Acb', ERI[v,k,v,v].copy(), QL[jj])
-                Hvovv_34swap = contract('Abc, bB -> ABc', Hvovv.copy(), QL[kk])
-                Hvovv_34swap = contract('ABc, cC -> ABC', Hvovv_34swap, QL[jj])
-                Hvovv = contract('Acb, cC -> ACb', Hvovv, QL[jj])
-                Hvovv = contract('ACb, bB -> ACB', Hvovv, QL[kk])
+                Hvovv = contract('abc, aA -> Abc', ERI[v,k,v,v].copy(), QL[jj])
+                Hvovv_34swap = contract('Acb, cC -> ACb', Hvovv.copy(), QL[kk])
+                Hvovv_34swap = contract('ACb, bB -> ACB', Hvovv_34swap, QL[jj])
+                Hvovv = contract('Abc, bB -> ABc', Hvovv, QL[jj])
+                Hvovv = contract('ABc, cC -> ABC', Hvovv, QL[kk])
 
                 for i in range(no):
                     ii = i*no + i
                     iijj = ii*(no*no) + jj
 
-                    Hvovv = Hvovv - contract('a,cb->acb', Sijmn[iijj].T @ t1[i], QL[jj].T @ ERI[i,k,v,v].copy() @ QL[kk])
-                    Hvovv_34swap = Hvovv_34swap - contract('a, bc->abc', Sijmn[iijj].T @ t1[i], QL[kk].T @ ERI[i,k,v,v] @ QL[jj])
+                    Hvovv = Hvovv - contract('a,bc->abc', Sijmn[iijj].T @ t1[i], QL[jj].T @ ERI[i,k,v,v].copy() @ QL[kk])
+                    Hvovv_34swap = Hvovv_34swap - contract('a, cb->acb', Sijmn[iijj].T @ t1[i], QL[kk].T @ ERI[i,k,v,v] @ QL[jj])
 
-                tmp = contract('acb, a -> cb', 2.0 * Hvovv - Hvovv_34swap.swapaxes(1,2), Y1_A[j])
+                tmp = contract('abc, a -> cb', 2.0 * Hvovv - Hvovv_34swap.swapaxes(1,2), Y1_A[j])
                 tmp2 = contract('cb, b ->c', tmp, X1_B[j])
                 Bcon = Bcon + contract('c,c->', tmp2, X1_C[k])
 
@@ -1512,17 +1606,18 @@ class ccresponse(object):
                         tmp = contract("cd,cd->", Sijmn[ijkl] @ X2_C[kl] @ Sijmn[ijkl].T, Y2_A[ij])
                         tmp = tmp * X2_B[ij]
                         Bcon = Bcon + 0.5* contract('ab,ab->', tmp, ERIoovv[ij][k,l].copy())
-
+ 
                         tmp = contract("ab,bd->ad", X2_C[ij] @ Sijmn[ijik] , Y2_A[ik])
                         tmp = contract("ad,cd->ac", tmp, X2_B[kl] @ Sijmn[ikkl].T)
                         Bcon = Bcon + contract('ac,ac->', tmp, QL[ij].T @ ERI[j,l,v,v].copy() @ QL[kl])
 
+                        #c_kl b_ik, a_ij
                         tmp = contract("cd,db->cb", X2_C[kl] @ Sijmn[ikkl].T , Y2_A[ik])
                         tmp = contract("cb,ab->ca", tmp, X2_B[ij] @ Sijmn[ijik])
                         Bcon = Bcon + contract('ca,ac->', tmp, QL[ij].T @ ERI[l,j,v,v].copy() @ QL[kl])
            
-                        tmp = contract("ab,ab->", Sijmn[ijkl].T @ X2_C[ij] @ Sijmn[ijkl], Y2_A[kl])
-                        tmp = tmp * X2_B[kl]
+                        tmp = contract("ab,ab->", Sijmn[ijkl].T @ X2_B[ij] @ Sijmn[ijkl], Y2_A[kl])
+                        tmp = tmp * X2_C[kl]
                         Bcon = Bcon + 0.5* contract('cd,cd->', tmp, ERIoovv[kl][i,j].copy())
                  
                         tmp = contract("ab,ac->bc", X2_B[ij] @ Sijmn[ijkl], QL[ij].T @ L[i,j,v,v] @ QL[kl])
@@ -2486,13 +2581,13 @@ class ccresponse(object):
         # ABC
         self.LAX3 = self.comp_LAX(X1_C, X2_C, Y1_A, Y2_A, pertbar_B)
         # CBA
-        self.LAX4 = self.comp_LAX(X1_A, X2_A, Y1_C, Y2_C, pertbar_A)
+        self.LAX4 = self.comp_LAX(X1_A, X2_A, Y1_C, Y2_C, pertbar_B)
         # ACB
         self.LAX5 = self.comp_LAX(X1_B, X2_B, Y1_A, Y2_A, pertbar_C)
         # BCA
         self.LAX6 = self.comp_LAX(X1_A, X2_A, Y1_B, Y2_B, pertbar_C)
 
-        self.hyper = self.LAX + self.LAX2 + self.LAX3 + self.LAX4 + self.LAX5 + self.LAX6
+        self.hyper += self.LAX + self.LAX2 + self.LAX3 + self.LAX4 + self.LAX5 + self.LAX6
 
         self.Fz1 = 0
         self.Fz2 = 0
@@ -2506,7 +2601,7 @@ class ccresponse(object):
         #L2, X2, X1 
         self.Fz3 = self.comp_Fz(X1_A, X1_B, X2_A, X2_B, pertbar_C)
         
-        self.hyper = self.Fz1 + self.Fz2 + self.Fz3
+        self.hyper += self.Fz1 + self.Fz2 + self.Fz3
 
         self.Bcon1 = 0 
         self.Bcon2 = 0 
@@ -2520,7 +2615,7 @@ class ccresponse(object):
         self.Bcon2 = self.comp_Bcon(Y1_B, X1_A, X1_C, Y2_B, X2_A, X2_C, hbar)
         #CAB
         self.Bcon3 = self.comp_Bcon(Y1_C, X1_A, X1_B, Y2_C, X2_A, X2_B, hbar)
-        self.hyper = self.Bcon1 + self.Bcon2 + self.Bcon3
+        self.hyper += self.Bcon1 + self.Bcon2 + self.Bcon3
 
         self.G = 0
         # <L1(0)|[[[H_bar,X1(A)],X1(B)],X1(C)]|0>
@@ -2622,7 +2717,7 @@ class ccresponse(object):
         #LHX1Y1Z2
         self.G += self.comp_LHXYZ(X2_C, X1_A, X1_B)
 
-        #self.hyper = self.G 
+        self.hyper += self.G 
 
         return self.hyper
 
@@ -2670,9 +2765,76 @@ class ccresponse(object):
         for i in range(0,3):
             Beta_avg += (hyper_AB[2,i,i] + hyper_AB[i,2,i] + hyper_AB[i,i,2])/5
 
+        print("\Beta_zxx = %10.12lf" %(hyper_AB[2,0,0]))
+        print("\Beta_xzx = %10.12lf" %(hyper_AB[0,2,0]))
+        print("\Beta_xxz = %10.12lf" %(hyper_AB[0,0,2]))
+        print("\Beta_zyy = %10.12lf" %(hyper_AB[2,1,1]))
+        print("\Beta_yzy = %10.12lf" %(hyper_AB[1,2,1]))
+        print("\Beta_yyz = %10.12lf" %(hyper_AB[1,1,2]))
+        print("\Beta_zzz = %10.12lf" %(hyper_AB[2,2,2]))
+
         print("Beta_avg = %10.12lf" %(Beta_avg))
         print("\n First Dipole Hyperpolarizability computed in %.3f seconds.\n" % (time.time() - solver_start))
 
+        print(self.psuedoresponse)
+        return Beta_avg
+
+    def lhyperpolar(self):
+        """
+        Return
+        ------
+        Beta_avg: float
+            Hyperpolarizability average
+        """
+        solver_start = time.time()
+
+        lccpert_om1_X = self.lccpert_om1_X
+        lccpert_om2_X = self.lccpert_om2_X
+        lccpert_om_sum_X = self.lccpert_om_sum_X
+
+        lccpert_om1_2nd_X = self.lccpert_om1_2nd_X
+        lccpert_om2_2nd_X = self.lccpert_om2_2nd_X
+        lccpert_om_sum_2nd_X = self.lccpert_om_sum_2nd_X
+
+        lccpert_om1_Y = self.lccpert_om1_Y
+        lccpert_om2_Y = self.lccpert_om2_Y
+        lccpert_om_sum_Y = self.lccpert_om_sum_Y
+
+        lccpert_om1_2nd_Y = self.lccpert_om1_2nd_Y
+        lccpert_om2_2nd_Y = self.lccpert_om2_2nd_Y
+        lccpert_om_sum_2nd_Y = self.lccpert_om_sum_2nd_Y
+
+        lhyper_AB_1st = np.zeros((3,3,3))
+        lhyper_AB_2nd = np.zeros((3,3,3))
+        lhyper_AB = np.zeros((3,3,3))
+
+        for a in range(0, 3):
+            pertkey_a = "MU_" + self.cart[a]
+            for b in range(0, 3):
+                pertkey_b = "MU_" + self.cart[b]
+                for c in range(0, 3):
+                    pertkey_c = "MU_" + self.cart[c]
+
+                    lhyper_AB_1st[a,b,c] = self.lquadraticresp(pertkey_a, pertkey_b, pertkey_c, lccpert_om_sum_X[pertkey_a], lccpert_om1_X[pertkey_b], lccpert_om2_X[pertkey_c],  lccpert_om_sum_Y[pertkey_a], lccpert_om1_Y[pertkey_b], lccpert_om2_Y[pertkey_c] )
+                    lhyper_AB_2nd[a,b,c] = self.lquadraticresp(pertkey_a, pertkey_b, pertkey_c, lccpert_om_sum_2nd_X[pertkey_a], lccpert_om1_2nd_X[pertkey_b], lccpert_om2_2nd_X[pertkey_c],  lccpert_om_sum_2nd_Y[pertkey_a], lccpert_om1_2nd_Y[pertkey_b], lccpert_om2_2nd_Y[pertkey_c])
+                    lhyper_AB[a,b,c] = (lhyper_AB_1st[a,b,c] + lhyper_AB_2nd[a,b,c] )/2
+
+        Beta_avg = 0
+        for i in range(0,3):
+            Beta_avg += (lhyper_AB[2,i,i] + lhyper_AB[i,2,i] + lhyper_AB[i,i,2])/5
+
+        print("\Beta_zxx = %10.12lf" %(lhyper_AB[2,0,0]))
+        print("\Beta_xzx = %10.12lf" %(lhyper_AB[0,2,0]))
+        print("\Beta_xxz = %10.12lf" %(lhyper_AB[0,0,2]))
+        print("\Beta_zyy = %10.12lf" %(lhyper_AB[2,1,1]))
+        print("\Beta_yzy = %10.12lf" %(lhyper_AB[1,2,1]))
+        print("\Beta_yyz = %10.12lf" %(lhyper_AB[1,1,2]))
+        print("\Beta_zzz = %10.12lf" %(lhyper_AB[2,2,2]))
+
+        print("Beta_avg = %10.12lf" %(Beta_avg))
+        print("\n First Dipole Hyperpolarizability computed in %.3f seconds.\n" % (time.time() - solver_start))
+
+        print(self.psuedoresponse)
         return Beta_avg
 
     def linresp_asym(self, pertkey_a, pertkey_b, X1_B, X2_B, Y1_B, Y2_B):
@@ -2875,10 +3037,15 @@ class ccresponse(object):
         Dia = self.Dia
         Dijab = self.Dijab
 
+        #X1, X2 = self.ccwfn.Local.filter_res(pertbar.Avo.T,pertbar.Avvoo) 
         # initial guess, comment out omega
-        X1 = pertbar.Avo.T/(Dia + omega)
-        X2 = pertbar.Avvoo/(Dijab + omega)
- 
+        X1 = pertbar.Avo.T /(Dia + omega)
+        X2 = pertbar.Avvoo /(Dijab + omega)
+
+        pseudo = pseudo = self.pseudoresponse(pertbar, X1, X2)
+        print(f"Iter {0:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudo.real:.5E}") 
+
+        #commenting this out for now
         if self.ccwfn.local is not None and self.ccwfn.filter is True:
             X1, X2 = self.ccwfn.Local.filter_res(X1, X2)
         pseudo = self.pseudoresponse(pertbar, X1, X2)
@@ -2938,6 +3105,7 @@ class ccresponse(object):
 
             if ((abs(pseudodiff) < e_conv) and abs(rms) < r_conv) or maxiter == niter :
                 print("\nPerturbed wave function converged in %.3f seconds.\n" % (time.time() - solver_start))
+                self.psuedoresponse.append(pseudo)
                 return self.X1, self.X2, pseudo
 
             #diis.add_error_vector(self.X1, self.X2)
@@ -2953,41 +3121,26 @@ class ccresponse(object):
 
         no = self.no
 
-        eps_occ = np.diag(self.cchbar.Hoo)
-        eps_lvir = []
-        for i in range(no):
-           for j in range(no):
-                ij = i*no + j 
-                print(self.cchbar.Hvv[ij].shape, np.diag(self.cchbar.Hvv[ij]).shape)
-                eps_lvir.append(np.diag(self.cchbar.Hvv[ij]))
         contract =self.contract
 
-        Q = self.Local.Q
-        L = self.Local.L
-  
-        QL = self.Local.QL
         Avo = lpertbar.Avo.copy()
         Avvoo = lpertbar.Avvoo.copy()
  
+        print("only keeping the numerator terms")
         self.X1 = []
         self.X2 = []
         for i in range(no):
             ii = i * no + i
-            QL_ii = Q[ii] @ L[ii]
 
             #Xv{ii}
             lX1 = Avo[ii].copy() 
-            for a in range(self.Local.dim[ii]):
-                lX1[a] /= (eps_occ[i] - eps_lvir[ii][a] + omega)
-            self.X1.append(lX1)
+            lX1 = lX1/(self.eps_occ[i] - self.eps_lvir[ii].reshape(-1,) + omega)
+            self.X1.append(2.0 *lX1)
             for j in range(no):
                 ij = i * no + j
-
-                for a in range(self.Local.dim[ij]): 
-                    for b in range(self.Local.dim[ij]):
-                        lX2 = Avvoo[ij].copy()/(eps_occ[i] + eps_occ[j] - eps_lvir[ij][a] - eps_lvir[ij][b] + omega) 
-
-                self.X2.append(lX2)
+                lX2 = Avvoo[ij].copy()
+                lX2 = lX2/(self.eps_occ[i] + self.eps_occ[j] - self.eps_lvir[ij].reshape(1,-1) - self.eps_lvir[ij].reshape(-1,1) + omega) #- eps_lvir[ij][a,a] - eps_lvir[ij][b,b] + omega)
+                self.X2.append(2.0 *lX2)
 
         pseudo = self.local_pseudoresponse(lpertbar, self.X1, self.X2)
         print(f"Iter {0:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudo.real:.5E}")
@@ -3005,15 +3158,22 @@ class ccresponse(object):
             rms = 0
             for i in range(no):
                 ii = i * no + i
-                 
-                self.X1[i] += r1[i] / (eps_occ[i] - eps_lvir[ii].reshape(-1,) + omega)
-                rms += contract('a,a->', np.conj(r1[i] / (eps_occ[i])), (r1[i] / (eps_occ[i])))
+                
+                #swap the sign
+                #for a in range(self.Local.dim[ii]):
+                self.X1[i] -= r1[i] / (self.Local.eps[ii].reshape(-1,) - self.H.F[i,i])
+
+                #(self.eps_occ[i] - self.eps_lvir[ii].reshape(-1,) + omega)#- eps_lvir[ii][a,a] + omega)#(eps_occ[i] - eps_lvir[ii].reshape(-1,) + omega)
+                rms += contract('a,a->', np.conj(r1[i] / (self.eps_occ[i])), (r1[i] / (self.eps_occ[i])))
 
                 for j in range(no):
                     ij = i*no + j
- 
-                    self.X2[ij] += r2[ij] / (eps_occ[i] + eps_occ[j] - eps_lvir[ij].reshape(1,-1) - eps_lvir[ij].reshape(-1,1) + omega)
-                    rms += contract('ab,ab->', np.conj(r2[ij]/(eps_occ[i] + eps_occ[j])), r2[ij]/(eps_occ[i] + eps_occ[j]))
+
+                    self.X2[ij] -= r2[ij] / (self.Local.eps[ij].reshape(1,-1) + self.Local.eps[ij].reshape(-1,1) - self.H.F[i,i] - self.H.F[j,j])
+
+
+#(self.eps_occ[i] + self.eps_occ[j] - self.eps_lvir[ij].reshape(1,-1) - self.eps_lvir[ij].reshape(-1,1) + omega)# - eps_lvir[ij][a,a] - eps_lvir[ij][b,b] + omega)#(eps_occ[i] + eps_occ[j] - eps_lvir[ij].reshape(1,-1) - eps_lvir[ij].reshape(-1,1) + omega)
+                    rms += contract('ab,ab->', np.conj(r2[ij]/(self.eps_occ[i] + self.eps_occ[j])), r2[ij]/(self.eps_occ[i] + self.eps_occ[j]))
 
             rms = np.sqrt(rms)
             #end loop
@@ -3024,10 +3184,12 @@ class ccresponse(object):
 
             if ((abs(pseudodiff) < e_conv) and abs(rms) < r_conv):
                 print("\nPerturbed wave function converged in %.3f seconds.\n" % (time.time() - solver_start))
+                self.psuedoresponse.append(pseudo)
                 return self.X1, self.X2, pseudo
 
             if niter == maxiter:
                 print("\nPerturbed wave function not fully converged in %.3f seconds.\n" % (time.time() - solver_start))
+                self.psuedoresponse.append(pseudo)
                 return self.X1, self.X2, pseudo
 
             #diis.add_error_vector(self.X1, self.X2)
@@ -3047,6 +3209,7 @@ class ccresponse(object):
         Dia = self.Dia
         Dijab = self.Dijab
 
+        #X1_guess, X2_guess = self.ccwfn.Local.filter_res(pertbar.Avo.T,pertbar.Avvoo) 
         # initial guess, comment out omega for local 
         X1_guess = pertbar.Avo.T/(Dia + omega)
         X2_guess = pertbar.Avvoo/(Dijab + omega)
@@ -3129,10 +3292,12 @@ class ccresponse(object):
                 
             if ((abs(pseudodiff) < e_conv) and abs(rms) < r_conv):
                 print("\nPerturbed wave function converged in %.3f seconds.\n" % (time.time() - solver_start))
+                self.psuedoresponse.append(pseudo)
                 return self.Y1, self.Y2 , pseudo
 
             if niter == maxiter:
                 print("\nPerturbed wave function not fully converged in %.3f seconds.\n" % (time.time() - solver_start))
+                self.psuedoresponse.append(pseudo)
                 return self.Y1, self.Y2, pseudo
 
             #diis.add_error_vector(self.Y1, self.Y2)
@@ -3208,13 +3373,13 @@ class ccresponse(object):
                 ii = i * no + i
 
                 #commented out error prone component
-                self.Y1[i] += r1[i] / (eps_occ[i] - eps_lvir[ii].reshape(-1,) + omega)
+                self.Y1[i] -= r1[i] / (self.Local.eps[ii].reshape(-1,) - self.H.F[i,i])#(eps_occ[i] - eps_lvir[ii].reshape(-1,) + omega)
                 rms += contract('a,a->', np.conj(r1[i] / (eps_occ[i])), (r1[i] / (eps_occ[i])))
 
                 for j in range(no):
                     ij = i*no + j
 
-                    self.Y2[ij] += r2[ij] / (eps_occ[i] + eps_occ[j] - eps_lvir[ij].reshape(1,-1) - eps_lvir[ij].reshape(-1,1) + omega)
+                    self.Y2[ij] -= r2[ij] / (self.Local.eps[ij].reshape(1,-1) + self.Local.eps[ij].reshape(-1,1) - self.H.F[i,i] - self.H.F[j,j])#(eps_occ[i] + eps_occ[j] - eps_lvir[ij].reshape(1,-1) - eps_lvir[ij].reshape(-1,1) + omega)
                     rms += contract('ab,ab->', np.conj(r2[ij]/(eps_occ[i] + eps_occ[j])), r2[ij]/(eps_occ[i] + eps_occ[j]))
 
             rms = np.sqrt(rms)
@@ -3226,10 +3391,12 @@ class ccresponse(object):
 
             if ((abs(pseudodiff) < e_conv) and abs(rms) < r_conv):
                 print("\nPerturbed wave function converged in %.3f seconds.\n" % (time.time() - solver_start))
+                self.psuedoresponse.append(pseudo)
                 return self.Y1, self.Y2, pseudo
 
             if niter == maxiter:
                 print("\nPerturbed wave function not fully converged in %.3f seconds.\n" % (time.time() - solver_start))
+                self.psuedoresponse.append(pseudo)
                 return self.Y1, self.Y2, pseudo
 
         #    #diis.add_error_vector(self.X1, self.X2)
@@ -3651,7 +3818,7 @@ class ccresponse(object):
         L = self.H.L
         Sijmn = self.Local.Sijmn
         QL = self.Local.QL
-        mu = self.H.mu[2] #z axis only for now       
+        mu = lpertbar.pert #z axis only for now       
         ERIoovv = self.Local.ERIoovv
 
         in_Y1 = []
@@ -4979,16 +5146,8 @@ class ccresponse(object):
 
     def pseudoresponse(self, pertbar, X1, X2):
         contract = self.ccwfn.contract
-        #polar3 = 0 
-        for i in range(self.ccwfn.no):
-            ii = i*self.ccwfn.no + i  
-            QL = self.ccwfn.Local.Q[ii] @ self.ccwfn.Local.L[ii]
-            #print("Avo in psuedo", pertbar.Avo[:,i] @ QL)
-            #print("X in psuedo", X1[i] @ QL)  
-            #polar3 += 2.0 * contract('a,a->', pertbar.Avo[:,i] @ QL, X1[i] @ QL) 
         polar1 = 2.0 * contract('ai,ia->', np.conj(pertbar.Avo), X1)
         polar2 = 2.0 * contract('ijab,ijab->', np.conj(pertbar.Avvoo), (2.0*X2 - X2.swapaxes(2,3)))
-        #print("polar3", polar3)
         return -2.0*(polar1 + polar2)
 
     def local_pseudoresponse(self, lpertbar, X1, X2):
@@ -4998,17 +5157,12 @@ class ccresponse(object):
         Avvoo = lpertbar.Avvoo.copy()
         polar1 = 0
         polar2 = 0
-        #norm = 0
-        #norm_1 = 0
         for i in range(no):
-            ii = i * no + i
-            #print("Avo in psuedo", ii, Avo[ii]) 
-            #print("X in psuedo", ii, X1[i])
+            ii = i*no +i 
             polar1 += 2.0 * contract('a,a->', Avo[ii].copy(), X1[i].copy())
             for j in range(no):
-                ij = i*no + j 
-                                 
-                polar2 += 2.0 * contract('ab,ab->', Avvoo[ij], (2.0*X2[ij] - X2[ij].swapaxes(0,1)))
+                ij = i*no + j  
+                polar2 += 2.0 * contract('ab,ab->', Avvoo[ij], (2.0*X2[ij] - X2[ij].transpose()))
 
         return -2.0*(polar1 + polar2)
         
@@ -5061,6 +5215,9 @@ class lpertbar(object):
         t2 = lccwfn.t2
         contract = ccwfn.contract
         QL = ccwfn.Local.QL 
+
+        #saving H.mu[axis] here for on the fly generation of pertbar in the in_Y1 eqns
+        self.pert = pert
         self.Aov = []
         self.Avv = []
         self.Avo = []
@@ -5070,7 +5227,7 @@ class lpertbar(object):
         self.Avvvo = []
 
         self.Avvvj_ii = []
-
+        
         self.Aoo = pert[o,o].copy()
         for i in range(no):
             ii = i*no + i

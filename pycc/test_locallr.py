@@ -21,14 +21,14 @@ from data.molecules import *
 
 psi4.set_memory('2 GiB')
 psi4.core.set_output_file('output.dat', False)
-psi4.set_options({'basis': 'cc-pvdz',
+psi4.set_options({'basis': 'aug-cc-pvdz',
                   'scf_type': 'pk',
                   'freeze_core': 'true',
                   'e_convergence': 1e-08,
                   'd_convergence': 1e-08,
                   'r_convergence': 1e-08
 })
-mol = psi4.geometry(moldict["(H2)_2"])
+mol = psi4.geometry(moldict["(H2)_4"])
 rhf_e, rhf_wfn = psi4.energy('SCF', return_wfn=True)
 
 e_conv = 1e-08
@@ -40,7 +40,7 @@ r_conv = 1e-08
 #conv_hbar = cchbar(conv_cc)
 
 #sim 
-cc_sim = pycc.ccwfn(rhf_wfn, local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-05, filter = True)
+cc_sim = pycc.ccwfn(rhf_wfn, local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-3, filter = True)
 ecc = cc_sim.solve_cc(e_conv, r_conv)
 hbar_sim = pycc.cchbar(cc_sim)
 

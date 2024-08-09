@@ -366,7 +366,7 @@ class ccresponse(object):
                     X1[X_key], X2[X_key], polar = self.solve_right(self.pertbar[pertkey], -omega, e_conv, r_conv, maxiter, max_diis, start_diis)
                     check.append(polar)
 
-    def pert_quadresp(self, omega1, omega2, e_conv=1e-12, r_conv=1e-12, maxiter=200, max_diis=7, start_diis=1):
+    def pert_quadresp(self, omega1, omega2, e_conv=1e-08, r_conv=1e-08, maxiter=200, max_diis=7, start_diis=1):
         """
         Build first-order perturbed wave functions (left- and right-hand) for the electric dipole operator (Mu)
 
@@ -2566,12 +2566,12 @@ class ccresponse(object):
         self.LHX1X2 = 0.0
         self.LHX2Y2 = 0.0
 
-        X1_A, X2_A = self.ccwfn.Local.filter_res(X1_A, X2_A) 
-        X1_B, X2_B = self.ccwfn.Local.filter_res(X1_B, X2_B) 
-        X1_C, X2_C = self.ccwfn.Local.filter_res(X1_C, X2_C) 
-        Y1_A, Y2_A = self.ccwfn.Local.filter_res(Y1_A, Y2_A) 
-        Y1_B, Y2_B = self.ccwfn.Local.filter_res(Y1_B, Y2_B) 
-        Y1_C, Y2_C = self.ccwfn.Local.filter_res(Y1_C, Y2_C) 
+        #X1_A, X2_A = self.ccwfn.Local.filter_res(X1_A, X2_A) 
+        #X1_B, X2_B = self.ccwfn.Local.filter_res(X1_B, X2_B) 
+        #X1_C, X2_C = self.ccwfn.Local.filter_res(X1_C, X2_C) 
+        #Y1_A, Y2_A = self.ccwfn.Local.filter_res(Y1_A, Y2_A) 
+        #Y1_B, Y2_B = self.ccwfn.Local.filter_res(Y1_B, Y2_B) 
+        #Y1_C, Y2_C = self.ccwfn.Local.filter_res(Y1_C, Y2_C) 
         
         #LAX expressions
         # BAC
@@ -3037,19 +3037,19 @@ class ccresponse(object):
         Dia = self.Dia
         Dijab = self.Dijab
 
-        #X1, X2 = self.ccwfn.Local.filter_res(pertbar.Avo.T,pertbar.Avvoo) 
+        X1, X2 = self.ccwfn.Local.filter_amps(pertbar.Avo.T,pertbar.Avvoo) 
         # initial guess, comment out omega
-        X1 = pertbar.Avo.T /(Dia + omega)
-        X2 = pertbar.Avvoo /(Dijab + omega)
+        X1 = X1 /(Dia + omega)
+        X2 = X2 /(Dijab + omega)
 
         pseudo = pseudo = self.pseudoresponse(pertbar, X1, X2)
         print(f"Iter {0:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudo.real:.5E}") 
 
         #commenting this out for now
-        if self.ccwfn.local is not None and self.ccwfn.filter is True:
-            X1, X2 = self.ccwfn.Local.filter_res(X1, X2)
-        pseudo = self.pseudoresponse(pertbar, X1, X2)
-        print(f"Iter {0:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudo.real:.5E}")
+        #if self.ccwfn.local is not None and self.ccwfn.filter is True:
+        #    X1, X2 = self.ccwfn.Local.filter_res(X1, X2)
+        #pseudo = self.pseudoresponse(pertbar, X1, X2)
+        #print(f"Iter {0:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudo.real:.5E}")
 
         #diis = helper_diis(X1, X2, max_diis)
         contract = self.ccwfn.contract
@@ -3209,13 +3209,13 @@ class ccresponse(object):
         Dia = self.Dia
         Dijab = self.Dijab
 
-        #X1_guess, X2_guess = self.ccwfn.Local.filter_res(pertbar.Avo.T,pertbar.Avvoo) 
+        X1_guess, X2_guess = self.ccwfn.Local.filter_res(pertbar.Avo.T,pertbar.Avvoo) 
         # initial guess, comment out omega for local 
-        X1_guess = pertbar.Avo.T/(Dia + omega)
-        X2_guess = pertbar.Avvoo/(Dijab + omega)
+        X1_guess = X1_guess/(Dia + omega)
+        X2_guess = X2_guess/(Dijab + omega)
 
-        if self.ccwfn.local is not None and self.ccwfn.filter is True:
-            X1_guess, X2_guess = self.ccwfn.Local.filter_res(X1_guess, X2_guess)
+        #if self.ccwfn.local is not None and self.ccwfn.filter is True:
+        #    X1_guess, X2_guess = self.ccwfn.Local.filter_res(X1_guess, X2_guess)
 
         # initial guess
         Y1 = 2.0 * X1_guess.copy()
@@ -3234,9 +3234,9 @@ class ccresponse(object):
         self.im_Y1 = self.in_Y1(pertbar, self.X1, self.X2)
         self.im_Y2 = self.in_Y2(pertbar, self.X1, self.X2)
 
-        #adding filter here
-        if self.ccwfn.local is not None and self.ccwfn.filter is True:
-            self.im_Y1, self.im_Y2 = self.ccwfn.Local.filter_res(self.im_Y1, self.im_Y2)
+        ##adding filter here
+        #if self.ccwfn.local is not None and self.ccwfn.filter is True:
+        #    self.im_Y1, self.im_Y2 = self.ccwfn.Local.filter_res(self.im_Y1, self.im_Y2)
 
         #adding to validate imhomogenous terms
         pseudo = self.pseudoresponse(pertbar, self.im_Y1, self.im_Y2)
@@ -5161,7 +5161,8 @@ class ccresponse(object):
             ii = i*no +i 
             polar1 += 2.0 * contract('a,a->', Avo[ii].copy(), X1[i].copy())
             for j in range(no):
-                ij = i*no + j  
+                ij = i*no + j 
+                #need to split this in two separate line slike X1 terms 
                 polar2 += 2.0 * contract('ab,ab->', Avvoo[ij], (2.0*X2[ij] - X2[ij].transpose()))
 
         return -2.0*(polar1 + polar2)
@@ -5256,13 +5257,19 @@ class lpertbar(object):
             
             #Avo 
             tmp = QL[ij].T @ pert[v,i].copy()
-            tmp += t1[i] @ (QL[ij].T @ pert[v,v].copy() @ QL[ii]).T
-            
-            Sijmi = ccwfn.Local.Sijmi
+            tmp += contract('e, ae -> a', t1[i], QL[ij].T @ pert[v,v].copy() @ QL[ii])
+
+        #self.Avo -= contract('ma,mi->ai', t1, pert[o,o])
+        self.Avo += contract('miea,me->ai', (2.0*t2 - t2.swapaxes(2,3)), pert[o,v])
+        self.Avo -= contract('ie,ma,me->ai', t1, t1, pert[o,v])
+
+ 
+            Sijmn = ccwfn.Local.Sijmn
             for m in range(no):
-                mi = m*no + i
-                ijm = ij*no + m 
-                tmp -= (t1[m] @ Sijmm[ijm].T) * pert[m,i].copy()  
+                mm = m*no + m 
+                ijmm = ij*(no*no) + mm
+
+                tmp -= (t1[m] @ Sijmn[ijmm].T) * pert[m,i].copy()  
                 tmp1 = (2.0*t2[mi] - t2[mi].swapaxes(0,1)) @ Sijmi[ijm].T
                 tmp += contract('ea,e->a', tmp1, pert[m,v].copy() @ QL[mi]) 
                 tmp -= contract('e,a,e->a', t1[i], t1[m] @ Sijmm[ijm].T, pert[m,v].copy() @ QL[ii]) 

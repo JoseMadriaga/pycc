@@ -808,11 +808,11 @@ class Local(object):
 
         return t2
 
-    def filter_amps(self, r1, r2):
+    def filter_amps(self, r1, r2, omega=0):
         no = self.no
         nv = self.nv
         dim = self.dim
-
+        print(omega)
         t1 = np.zeros((no,nv))
         for i in range(no):
             ii = i * no + i
@@ -821,7 +821,7 @@ class Local(object):
             Y = self.L[ii].T @ X
 
             for a in range(dim[ii]):
-                Y[a] = Y[a]/(self.H.F[i,i] - self.eps[ii][a])
+                Y[a] = Y[a]/(self.H.F[i,i] - self.eps[ii][a] + omega)
 
             X = self.L[ii] @ Y
             t1[i] = self.Q[ii] @ X
@@ -836,7 +836,7 @@ class Local(object):
 
             for a in range(dim[ij]):
                 for b in range(dim[ij]):
-                    Y[a,b] = Y[a,b]/(self.H.F[i,i] + self.H.F[j,j] - self.eps[ij][a] - self.eps[ij][b])
+                    Y[a,b] = Y[a,b]/(self.H.F[i,i] + self.H.F[j,j] - self.eps[ij][a] - self.eps[ij][b] + omega)
 
             X = self.L[ij] @ Y @ self.L[ij].T
             t2[i,j] = self.Q[ij] @ X @ self.Q[ij].T

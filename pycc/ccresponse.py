@@ -3036,11 +3036,11 @@ class ccresponse(object):
 
         Dia = self.Dia
         Dijab = self.Dijab
-
-        X1, X2 = self.ccwfn.Local.filter_amps(pertbar.Avo.T,pertbar.Avvoo) 
+        w = omega 
+        X1, X2 = self.ccwfn.Local.filter_amps(pertbar.Avo.T,pertbar.Avvoo, omega = w) 
         # initial guess, comment out omega
-        X1 = X1 /(Dia + omega)
-        X2 = X2 /(Dijab + omega)
+        #X1 = X1 /(Dia + omega)
+        #X2 = X2 /(Dijab + omega)
 
         pseudo = pseudo = self.pseudoresponse(pertbar, X1, X2)
         print(f"Iter {0:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudo.real:.5E}") 
@@ -3065,7 +3065,7 @@ class ccresponse(object):
 
             #comment out omega and not use eps_vir
             if self.ccwfn.local is not None:
-                inc1, inc2 = self.ccwfn.Local.filter_amps(r1, r2) #, self.eps_occ, self.eps_vir, omega)
+                inc1, inc2 = self.ccwfn.Local.filter_amps(r1, r2, omega = w) #, self.eps_occ, self.eps_vir, omega)
                 self.X1 += inc1
                 self.X2 += inc2
             
@@ -3134,12 +3134,12 @@ class ccresponse(object):
 
             #Xv{ii}
             lX1 = Avo[ii].copy() 
-            lX1 = lX1/(self.eps_occ[i] - self.eps_lvir[ii].reshape(-1,) + omega)
+            lX1 = lX1/ (self.Local.eps[ii].reshape(-1,) - self.H.F[i,i] + omega)#(self.eps_occ[i] - self.eps_lvir[ii].reshape(-1,) + omega)
             self.X1.append(2.0 *lX1)
             for j in range(no):
                 ij = i * no + j
                 lX2 = Avvoo[ij].copy()
-                lX2 = lX2/(self.eps_occ[i] + self.eps_occ[j] - self.eps_lvir[ij].reshape(1,-1) - self.eps_lvir[ij].reshape(-1,1) + omega) #- eps_lvir[ij][a,a] - eps_lvir[ij][b,b] + omega)
+                lX2 = lX2/(self.Local.eps[ij].reshape(1,-1) + self.Local.eps[ij].reshape(-1,1) - self.H.F[i,i] - self.H.F[j,j] + omega)#(self.eps_occ[i] + self.eps_occ[j] - self.eps_lvir[ij].reshape(1,-1) - self.eps_lvir[ij].reshape(-1,1) + omega) #- eps_lvir[ij][a,a] - eps_lvir[ij][b,b] + omega)
                 self.X2.append(2.0 *lX2)
 
         pseudo = self.local_pseudoresponse(lpertbar, self.X1, self.X2)
@@ -3161,7 +3161,7 @@ class ccresponse(object):
                 
                 #swap the sign
                 #for a in range(self.Local.dim[ii]):
-                self.X1[i] -= r1[i] / (self.Local.eps[ii].reshape(-1,) - self.H.F[i,i])
+                self.X1[i] -= r1[i] / (self.Local.eps[ii].reshape(-1,) - self.H.F[i,i] + omega)
 
                 #(self.eps_occ[i] - self.eps_lvir[ii].reshape(-1,) + omega)#- eps_lvir[ii][a,a] + omega)#(eps_occ[i] - eps_lvir[ii].reshape(-1,) + omega)
                 rms += contract('a,a->', np.conj(r1[i] / (self.eps_occ[i])), (r1[i] / (self.eps_occ[i])))
@@ -3169,8 +3169,7 @@ class ccresponse(object):
                 for j in range(no):
                     ij = i*no + j
 
-                    self.X2[ij] -= r2[ij] / (self.Local.eps[ij].reshape(1,-1) + self.Local.eps[ij].reshape(-1,1) - self.H.F[i,i] - self.H.F[j,j])
-
+                    self.X2[ij] -= r2[ij] / (self.Local.eps[ij].reshape(1,-1) + self.Local.eps[ij].reshape(-1,1) - self.H.F[i,i] - self.H.F[j,j] + omega)
 
 #(self.eps_occ[i] + self.eps_occ[j] - self.eps_lvir[ij].reshape(1,-1) - self.eps_lvir[ij].reshape(-1,1) + omega)# - eps_lvir[ij][a,a] - eps_lvir[ij][b,b] + omega)#(eps_occ[i] + eps_occ[j] - eps_lvir[ij].reshape(1,-1) - eps_lvir[ij].reshape(-1,1) + omega)
                     rms += contract('ab,ab->', np.conj(r2[ij]/(self.eps_occ[i] + self.eps_occ[j])), r2[ij]/(self.eps_occ[i] + self.eps_occ[j]))
@@ -3209,10 +3208,11 @@ class ccresponse(object):
         Dia = self.Dia
         Dijab = self.Dijab
 
-        X1_guess, X2_guess = self.ccwfn.Local.filter_res(pertbar.Avo.T,pertbar.Avvoo) 
+        w = omega
+        X1_guess, X2_guess = self.ccwfn.Local.filter_amps(pertbar.Avo.T,pertbar.Avvoo, omega = w) 
         # initial guess, comment out omega for local 
-        X1_guess = X1_guess/(Dia + omega)
-        X2_guess = X2_guess/(Dijab + omega)
+        #X1_guess = X1_guess/(Dia + omega)
+        #X2_guess = X2_guess/(Dijab + omega)
 
         #if self.ccwfn.local is not None and self.ccwfn.filter is True:
         #    X1_guess, X2_guess = self.ccwfn.Local.filter_res(X1_guess, X2_guess)
@@ -3253,7 +3253,7 @@ class ccresponse(object):
            
             #comment out omega and eps_vir for local
             if self.ccwfn.local is not None:
-                inc1, inc2 = self.ccwfn.Local.filter_amps(r1, r2) #, self.eps_occ, self.eps_vir, omega)
+                inc1, inc2 = self.ccwfn.Local.filter_amps(r1, r2, omega = w) #, self.eps_occ, self.eps_vir, omega)
                 self.Y1 += inc1
                 self.Y2 += inc2
             
@@ -3337,14 +3337,14 @@ class ccresponse(object):
 
             #Xv{ii}
             lX1 = Avo[ii].copy()
-            lX1 /= (eps_occ[i] - eps_lvir[ii].reshape(-1,) + omega)
+            lX1 /= (self.Local.eps[ii].reshape(-1,) - self.H.F[i,i] + omega)#(eps_occ[i] - eps_lvir[ii].reshape(-1,) + omega)
             self.Y1.append(2.0 * lX1.copy())
 
             for j in range(no):
                 ij = i * no + j
 
                 #temporary removing the virtual orbital energies
-                lX2 = Avvoo[ij].copy()/(eps_occ[i] + eps_occ[j] - eps_lvir[ij].reshape(1,-1) - eps_lvir[ij].reshape(-1,1) + omega)
+                lX2 = Avvoo[ij].copy()/(self.Local.eps[ij].reshape(1,-1) + self.Local.eps[ij].reshape(-1,1) - self.H.F[i,i] - self.H.F[j,j] + omega)#(eps_occ[i] + eps_occ[j] - eps_lvir[ij].reshape(1,-1) - eps_lvir[ij].reshape(-1,1) + omega)
                 self.Y2.append((4.0 * lX2.copy()) - (2.0 * lX2.copy().swapaxes(0,1)))
 
         pseudo = self.local_pseudoresponse(lpertbar, self.Y1, self.Y2)
@@ -3373,13 +3373,13 @@ class ccresponse(object):
                 ii = i * no + i
 
                 #commented out error prone component
-                self.Y1[i] -= r1[i] / (self.Local.eps[ii].reshape(-1,) - self.H.F[i,i])#(eps_occ[i] - eps_lvir[ii].reshape(-1,) + omega)
+                self.Y1[i] -= r1[i] / (self.Local.eps[ii].reshape(-1,) - self.H.F[i,i] + omega)#(eps_occ[i] - eps_lvir[ii].reshape(-1,) + omega)
                 rms += contract('a,a->', np.conj(r1[i] / (eps_occ[i])), (r1[i] / (eps_occ[i])))
 
                 for j in range(no):
                     ij = i*no + j
 
-                    self.Y2[ij] -= r2[ij] / (self.Local.eps[ij].reshape(1,-1) + self.Local.eps[ij].reshape(-1,1) - self.H.F[i,i] - self.H.F[j,j])#(eps_occ[i] + eps_occ[j] - eps_lvir[ij].reshape(1,-1) - eps_lvir[ij].reshape(-1,1) + omega)
+                    self.Y2[ij] -= r2[ij] / (self.Local.eps[ij].reshape(1,-1) + self.Local.eps[ij].reshape(-1,1) - self.H.F[i,i] - self.H.F[j,j] + omega)#(eps_occ[i] + eps_occ[j] - eps_lvir[ij].reshape(1,-1) - eps_lvir[ij].reshape(-1,1) + omega)
                     rms += contract('ab,ab->', np.conj(r2[ij]/(eps_occ[i] + eps_occ[j])), r2[ij]/(eps_occ[i] + eps_occ[j]))
 
             rms = np.sqrt(rms)
@@ -5254,22 +5254,16 @@ class lpertbar(object):
                 ijm = ij*no + m
                 tmp -= contract('a,e->ae', t1[m] @ Sijmm[ijm].T , pert[m,v].copy() @ QL[ij])
             self.Avv.append(tmp)
-            
+
             #Avo 
             tmp = QL[ij].T @ pert[v,i].copy()
-            tmp += contract('e, ae -> a', t1[i], QL[ij].T @ pert[v,v].copy() @ QL[ii])
-
-        #self.Avo -= contract('ma,mi->ai', t1, pert[o,o])
-        self.Avo += contract('miea,me->ai', (2.0*t2 - t2.swapaxes(2,3)), pert[o,v])
-        self.Avo -= contract('ie,ma,me->ai', t1, t1, pert[o,v])
-
- 
-            Sijmn = ccwfn.Local.Sijmn
+            tmp += t1[i] @ (QL[ij].T @ pert[v,v].copy() @ QL[ii]).T
+            
+            Sijmi = ccwfn.Local.Sijmi
             for m in range(no):
-                mm = m*no + m 
-                ijmm = ij*(no*no) + mm
-
-                tmp -= (t1[m] @ Sijmn[ijmm].T) * pert[m,i].copy()  
+                mi = m*no + i
+                ijm = ij*no + m 
+                tmp -= (t1[m] @ Sijmm[ijm].T) * pert[m,i].copy()  
                 tmp1 = (2.0*t2[mi] - t2[mi].swapaxes(0,1)) @ Sijmi[ijm].T
                 tmp += contract('ea,e->a', tmp1, pert[m,v].copy() @ QL[mi]) 
                 tmp -= contract('e,a,e->a', t1[i], t1[m] @ Sijmm[ijm].T, pert[m,v].copy() @ QL[ii]) 

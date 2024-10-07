@@ -113,11 +113,11 @@ class cchbar(object):
             self.Local.QL, self.lccwfn.t1, self.lccwfn.t2) 
             self.Hvvvv, self.Hvvvv_im, self.Hvvvv_ij = self.build_lHvvvv( o, v, ccwfn.no, ERI, self.Local.ERIoovv, self.Local.ERIvovv, self.Local.ERIvvvv, 
             self.Local.QL, self.lccwfn.t1, self.lccwfn.t2) 
-            self.Hvovv_ii, self.Hvovv_imn, self.Hvovv_imns, self.Hamef, self.Hamfe, self.Hvovv_ij, self.Hfjea, self.Hfibe, self.Hfieb, self.Hfmae, self.Hfmea = self.build_lHvovv(o,v,ccwfn.no, ERI, self.Local.ERIvovv, self.Local.ERIoovv, self.Local.QL, self.lccwfn.t1)
-            self.Hjiov, self.Hijov, self.Hmine, self.Himne, self.Hmnie, self.Hnmie, self.Hjmna, self.Hmjna, self.Hjine, self.Hmine_mm, self.Himne_mm = self.build_lHooov(o, v, ccwfn.no, ERI, self.Local.ERIooov, self.Local.QL, self.lccwfn.t1) 
-            self.Hovvo_mi, self.Hovvo_mj, self.Hovvo_mm, self.Hovvo_im, self.Hmvvj_mi = self.build_lHovvo(o, v, ccwfn.no, ERI, L, self.Local.ERIovvo, self.Local.QL, 
+            self.Hvovv_ii, self.Hvovv_imn, self.Hvovv_imns, self.Hamef, self.Hamfe, self.Hvovv_ij, self.Hfjea, self.Hfibe, self.Hfieb, self.Hfmae, self.Hfmea, self.Hgnea, self.Hgnae, self.Halbc, self.Halcb = self.build_lHvovv(o,v,ccwfn.no, ERI, self.Local.ERIvovv, self.Local.ERIoovv, self.Local.QL, self.lccwfn.t1)
+            self.Hjiov, self.Hijov, self.Hmine, self.Himne, self.Hmnie, self.Hnmie, self.Hjmna, self.Hmjna, self.Hjine, self.Hmine_mm, self.Himne_mm, self.Hooov = self.build_lHooov(o, v, ccwfn.no, ERI, self.Local.ERIooov, self.Local.QL, self.lccwfn.t1) 
+            self.Hovvo_mi, self.Hovvo_mj, self.Hovvo_mm, self.Hovvo_im, self.Hmvvj_mi, self.Hovvo_ni = self.build_lHovvo(o, v, ccwfn.no, ERI, L, self.Local.ERIovvo, self.Local.QL, 
             self.lccwfn.t1, self.lccwfn.t2)
-            self.Hovov_mi, self.Hovov_mj, self.Hovov_mm, self.Hovov_im = self.build_lHovov(o, v, ccwfn.no, ERI, self.Local.ERIovov, self.Local.ERIooov, self.Local.QL,
+            self.Hovov_mi, self.Hovov_mj, self.Hovov_mm, self.Hovov_im, self.Hovov_ni = self.build_lHovov(o, v, ccwfn.no, ERI, self.Local.ERIovov, self.Local.ERIooov, self.Local.QL,
             self.lccwfn.t1,self.lccwfn.t2)
             self.Hvvvo_im, self.Hvvvo_ij = self.build_lHvvvo(o, v, ccwfn.no, ERI, L, self.Local.ERIvvvo, self.Local.ERIoovo, self.Local.ERIvoov, self.Local.ERIvovo, 
             self.Local.ERIoovv, self.Local.Loovv, self.Local.QL,self.lccwfn.t1, self.lccwfn.t2, self.Hov, self.Hvvvv, self.Hvvvv_im)
@@ -824,8 +824,90 @@ class cchbar(object):
                         Hfmea -= contract('f,ea->fea', tmp, QL[mm].T @ ERI[n,m,v,v] @ QL[ij])
 
                     lHfmea.append(Hfmea)
-        return lHvovv_ii, lHvovv_imn, lHvovv_imns, lHamef, lHamfe, lHvovv, lHfjea, lHfibe, lHfieb, lHfmae, lHfmea
-        
+            lHgnea = []
+            lHgnae = []
+            for i in range(no):
+                ii = i*no + i
+                for m in range(no): 
+                    im = i*no + m 
+                    mi = m*no +i 
+                    for n in range(no):
+                        mn = m*no + n
+                        ni = n*no + i
+                        immn = im*(no*no) + mn
+                        mimn = mi*(no*no) + mn
+                        iimn = ii*(no*no) + mn
+                        mnni = mn*(no*no) + ni
+                        nm = n*no + m
+                        nmi = nm*no + i
+                        nim = ni*no + m
+
+                        Hvovv = contract('gea, gG -> Gea', ERI[v,n,v,v], QL[im])
+                        Hvovv = contract('Gea, eE -> GEa', Hvovv, QL[mn])
+                        Hvovv = contract('GEa, aA -> GEA', Hvovv, QL[ii])
+
+                        for _o in range(no):
+                            oo = _o*no + _o
+                            imoo = im*(no*no) + oo
+
+                            Hvovv = Hvovv - contract('g, ea -> gea', Sijmn[imoo] @ t1[_o], QL[mn].T @ ERI[_o,n,v,v] @ QL[ii])
+
+                        lHgnea.append(Hvovv) 
+
+                        #g_mi e_mn
+                        Hvovv = contract('gae, gG -> Gae', ERI[v,n,v,v], QL[mi])
+                        Hvovv = contract('Gae, aA -> GAe', Hvovv, QL[ii])
+                        Hvovv = contract('GAe, eE -> GAE', Hvovv, QL[mn])
+
+                        for _o in range(no):
+                            oo = _o*no + _o
+                            mioo = mi*(no*no) + oo
+
+                            Hvovv = Hvovv - contract('g, ae -> gae', Sijmn[mioo] @ t1[_o], QL[ii].T @ ERI[_o,n,v,v] @ QL[mn])
+
+                        lHgnae.append(Hvovv)
+       
+            lHalbc = []
+            lHalcb = []
+            for j in range(no):
+                jj = j*no + j
+
+                for k in range(no):
+                    kk = k*no + k
+                    jk = j*no + k
+
+                    for l in range(no):
+                        ll = l*no + l
+                        jl = j*no + l
+                        kl = k*no + l
+                        jkll = jk*(no*no) + ll
+                        jlll = jl*(no*no) + ll
+                        jlkk = jl*(no*no) + kk
+                        jjkl = jj*(no*no) + kl
+
+                        Hvovv = contract('aA, abc -> Abc', QL[jk], ERI[v,l,v,v])
+                        Hvovv = contract('bB, Abc -> ABc', QL[jj] , Hvovv)
+                        Hvovv = contract('cC, ABc -> ABC', QL[kk], Hvovv)
+                        for n in range(no):
+                            nn = n*no + n
+                            jknn = jk*(no*no) + nn
+
+                            Hvovv = Hvovv - contract('a, bc ->abc', (Sijmn[jknn] @ t1[n]), QL[jj].T @ ERI[n,l,v,v] @ QL[kk])
+ 
+                        lHalbc.append(Hvovv)
+                        Hvovv = contract('aA, abc -> Abc', QL[jk], ERI[v,l,v,v])
+                        Hvovv = contract('bB, Abc -> ABc', QL[kk] , Hvovv)
+                        Hvovv = contract('cC, ABc -> ABC', QL[jj], Hvovv)
+                        for n in range(no):
+                            nn = n*no + n
+                            jknn = jk*(no*no) + nn
+
+                            Hvovv = Hvovv - contract('a, bc ->abc', (Sijmn[jknn] @ t1[n]), QL[kk].T @ ERI[n,l,v,v] @ QL[jj])
+
+                        lHalcb.append(Hvovv)
+ 
+        return lHvovv_ii, lHvovv_imn, lHvovv_imns, lHamef, lHamfe, lHvovv, lHfjea, lHfibe, lHfieb, lHfmae, lHfmea, lHgnea, lHgnae, lHalbc, lHalcb
+    
     def build_Hvovv(self, o, v, ERI, t1):
         contract = self.contract
         if self.ccwfn.model == 'CCD':
@@ -867,7 +949,23 @@ class cchbar(object):
             lHmjna = []
         
             lHjine = [] 
-       
+      
+            lHooov_test = []
+
+            for i in range(no):
+                for j in range(no):
+                    ij = i*no + j 
+                    Hooov = ERIooov[ij].copy()
+                    for k in range(no):
+                        kk = k*no + k 
+                        for n in range(no):
+                            nn = n*no + n 
+                     
+                            tmp = contract('mef, eE -> mEf', ERI[n,o,v,v].copy(), QL[ij]) 
+                            tmp = contract('mEf, fF -> mEF', tmp, QL[kk]) 
+                            Hooov[:,n,k,:] = Hooov[:,n,k,:] + contract('f, mef -> me', t1[k], tmp) 
+                    lHooov_test.append(Hooov)  
+ 
             #Hmine and Himne - Eqn 98 and 99  
             for i in range(no): 
                 ii = i*no + i
@@ -1017,7 +1115,7 @@ class cchbar(object):
                 #tmp = contract('fF, nmEf -> nmEF', QL[ii], tmp)
                 #Hooov[:,:,i,:] = contract('f,nmef->mne',t1[i], tmp)         
                 #lHooov.append(Hooov) 
-        return lHjiov, lHijov, lHmine, lHimne, lHmnie, lHnmie, lHjmna, lHmjna, lHjine, lHmine_mm, lHimne_mm   
+        return lHjiov, lHijov, lHmine, lHimne, lHmnie, lHnmie, lHjmna, lHmjna, lHjine, lHmine_mm, lHimne_mm, lHooov_test   
         
     def build_Hooov(self, o, v, ERI, t1):
         contract = self.contract
@@ -1038,7 +1136,8 @@ class cchbar(object):
         contract = self.contract
         Sijim = self.Local.Sijim
         Sijmm = self.Local.Sijmm
-        Sijii = self.Local.Sijii 
+        Sijii = self.Local.Sijii
+        Sijmn = self.Local.Sijmn 
         if self.ccwfn.model == 'CCD':
             lHovvo_mi = []
             lHovvo_mj = []
@@ -1433,8 +1532,37 @@ class cchbar(object):
                         #tmp1 = QL[ij].T @ L[m,n,v,v]
                         #tmp1 = tmp1 @ QL[nj] 
                         #Hovvo[m,:,:,j] = Hovvo[m,:,:,j] + tmp.T @ tmp1.T   
-                #lHovvo.append(Hovvo)            
-        return lHovvo_mi, lHovvo_mj, lHovvo_mm, lHovvo_im, lHmvvj_mi  
+                #lHovvo.append(Hovvo) 
+            lHovvo_ni = []
+            for i in range(no):
+                ii = i*no + i 
+                for m in range(no):
+                    for n in range(no):
+                        _in = i*no + n 
+                        nn = n*no + n
+                        
+                        Hovvo = QL[_in].T @ ERI[m,v,v,n] @ QL[ii]
+                        ERIovvv = contract('fae, fF -> Fae', ERI[m,v,v,v], QL[_in])
+                        ERIovvv = contract('Fae, aA -> FAe', ERIovvv, QL[ii])
+                        ERIovvv = contract('FAe, eE -> FAE', ERIovvv, QL[nn])
+                        Hovvo = Hovvo + contract('e, fae -> fa', t1[n], ERIovvv)
+
+                        for _o in range(no):
+                            oo = _o*no + _o
+                            _no = n*no + _o
+                            on = _o*no + n
+                            inoo = _in*(no*no) + oo
+                            inno = _in*(no*no) + _no
+                            inon = _in*(no*no) + on
+
+                            Hovvo = Hovvo - contract('f, a -> fa', Sijmn[inoo] @ t1[_o], ERI[m,_o, v, n] @ QL[ii])
+                            Hovvo = Hovvo - contract('ef, ae -> fa', t2[_no] @ Sijmn[inno].T, QL[ii].T @ ERI[m,_o,v,v] @ QL[_no])
+                            tmp = contract('f, ae -> fae', Sijmn[inoo] @ t1[_o], QL[ii].T @ ERI[m,_o,v,v] @ QL[nn])
+                            Hovvo = Hovvo - contract('e, fae -> fa', t1[n], tmp)
+                            Hovvo = Hovvo + contract('ef, ae -> fa', t2[on] @ Sijmn[inon].T , QL[ii].T @ L[m,_o,v,v] @ QL[on])
+                        lHovvo_ni.append(Hovvo)
+     
+        return lHovvo_mi, lHovvo_mj, lHovvo_mm, lHovvo_im, lHmvvj_mi, lHovvo_ni  
 
     def build_Hovvo(self, o, v, ERI, L, t1, t2):
         contract = self.contract
@@ -1733,7 +1861,32 @@ class cchbar(object):
                         #Hovov[m,:,j,:] = Hovov[m,:,j,:] - contract('f,b,ef->be',t1[j], tmp, tmp1)
 
                 #lHovov.append(Hovov) 
-        return lHovov_mi, lHovov_mj, lHovov_mm, lHovov_im  
+            lHovov_ni = []
+            for i in range(no):
+                ii = i*no + i 
+                for m in range(no):
+                    for n in range(no):
+                        ni = n*no + i 
+                        nn = n*no + n 
+
+                        Hovov = QL[ni].T @ ERI[m,v,n,v] @ QL[ii]
+                        ERIvovv = contract('fae, fF -> Fae', ERI[v,m,v,v], QL[ni]) 
+                        ERIvovv = contract('Fae, aA -> FAe', ERIvovv, QL[ii]) 
+                        ERIvovv = contract('FAe, eE -> FAE', ERIvovv, QL[nn]) 
+                        Hovov = Hovov + contract('e, fae -> fa', t1[n], ERIvovv)
+
+                        for _o in range(no):
+                            oo = _o*no + _o 
+                            _no = n*no + _o
+                            nioo = ni*(no*no) + oo 
+                            nino = ni*(no*no) + _no
+                            Hovov = Hovov - contract('f, a-> fa', Sijmn[nioo] @ t1[_o], ERI[m,_o,n,v] @ QL[ii]) 
+                            Hovov = Hovov - contract('ef, ae -> fa', t2[_no] @Sijmn[nino].T, QL[ii].T @ ERI[_o,m,v,v] @ QL[_no])
+                            tmp = contract('f, ae -> fae', Sijmn[nioo] @ t1[_o], QL[ii].T @ ERI[_o,m,v,v] @ QL[nn])
+                            Hovov = Hovov - contract('e, fae -> fa', t1[n], tmp)
+                        lHovov_ni.append(Hovov)    
+
+        return lHovov_mi, lHovov_mj, lHovov_mm, lHovov_im, lHovov_ni  
 
     def build_Hovov(self, o, v, ERI, t1, t2):
         contract = self.contract

@@ -20,7 +20,7 @@ sys.path.append("/Users/josemarcmadriaga/pycc_present/pycc/pycc")
 from data.molecules import *
 psi4.core.clean
 psi4.set_memory('2 GiB')
-psi4.core.set_output_file('output.dat', False)
+psi4.core.set_output_file('output.dat', True)
 psi4.set_options({'basis': 'aug-cc-pvdz',
                   'scf_type': 'pk',
                   'freeze_core': 'true',
@@ -49,7 +49,8 @@ r_conv = 1e-12
 #conv_hbar = cchbar(conv_cc)
 
 #sim 
-cc_sim = pycc.ccwfn(rhf_wfn, local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-05, filter = True)
+cc_sim = pycc.ccwfn(rhf_wfn, local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-07, filter = True)
+print(cc_sim.H.mu[2]) 
 ecc = cc_sim.solve_cc(e_conv, r_conv)
 hbar_sim = pycc.cchbar(cc_sim)
 
@@ -85,7 +86,7 @@ resp = pycc.ccresponse(density)
 omega1 = 0.0656
 omega2 = 0.0656
 
-resp.pert_quadresp(omega1, omega2, e_conv=1e-12, r_conv=1e-12 )
+resp.pert_quadresp(omega1, omega2, e_conv=1e-8, r_conv=1e-8 )
 resp.hyperpolar()
 
 #local

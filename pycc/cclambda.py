@@ -8,6 +8,7 @@ if __name__ == "__main__":
 
 import numpy as np
 import time
+from time import process_time
 from opt_einsum import contract
 from .utils import helper_diis
 import torch
@@ -147,6 +148,11 @@ class cclambda(object):
         Hvvvo_im = self.hbar.Hvvvo_im 
         Hovoo_mn = self.hbar.Hovoo_mn 
 
+        #initialize variables for timing each function
+        self.lr1_t = 0
+        self.lr2_t = 0
+        self.pseudoenergy_t = 0
+
         lecc = self.local_pseudoenergy(self.Local.ERIoovv, l2)
 
         print("\nLCC Iter %3d: LCC PseudoE = %.15f  dE = % .5E" % (0, lecc, -lecc))
@@ -193,6 +199,10 @@ class cclambda(object):
             # check for convergence
             if ((abs(ediff) < e_conv) and rms < r_conv):
                 print("\nLambda-CC has converged in %.3f seconds.\n" % (time.time() - lambda_tstart))
+                print('Time table for intermediates')
+                print("lr1_t = %6.6f" % self.lr1_t)
+                print("lr2_t = %6.6f" % self.lr2_t)
+                print("Pseudoenergy_t = %6.6f" % self.pseudoenergy_t)
                 return lecc
 
     def build_lGoo(self, t2, l2):
@@ -224,11 +234,14 @@ class cclambda(object):
         return lGvv
 
     def lr_L1(self, o, v, l1, l2, Hov, Hvv, Hoo, Hovvo, Hovov, Hvvvo, Hovoo, Hvovv, Hvovvs, Hmine, Himne, Gvv, Goo):
+        lr1_start = process_time() 
+
         #Eqn 77
         contract = self.contract
         QL = self.Local.QL
         Sijmm = self.Local.Sijmm
         Sijmn = self.Local.Sijmn 
+        hbar = self.hbar
         lr_l1 = []
         if self.ccwfn.model == 'CCD':
             for i in range(self.no):
@@ -265,15 +278,18 @@ class cclambda(object):
           
                         r_l1 = r_l1 + contract('ef,eaf->a', Gvv[mn], Hvovvs[imn])
 
-                        r_l1 = r_l1 - 2.0 * Goo[m,n] * Hmine[iimn]
+                        #commenting out Hmine and using Hooov_test to check its viability
+                        r_l1 = r_l1 - 2.0 * Goo[m,n] * hbar.Hooov[ii][m,i,n,:] #Hmine[iimn]
                         
                         r_l1 = r_l1 + Goo[m,n] * Himne[iimn]
 
                 lr_l1.append(r_l1)
-                 
+        lr1_end = process_time()
+        self.lr1_t += lr1_end - lr1_start         
         return lr_l1
 
     def lr_L2(self, o, v, l1, l2, L, Hov, Hvv, Hoo, Hoooo, Hvvvv, Hovvo_mj, Hovvo_mi, Hovov_mj, Hovov_mi, Hvovv, Hjiov, Hijov, Gvv, Goo):
+        lr2_start = process_time()
         #Eqn 80 
         contract = self.contract
         QL = self.Local.QL
@@ -289,7 +305,7 @@ class cclambda(object):
             for ij in range(self.no*self.no):
                 i = ij // self.no 
                 j = ij % self.no 
-
+                ji = j * self.no + i 
                 r_l2 = self.Local.Loovv[ij][i,j].copy()
  
                 r_l2 = r_l2 + contract('eb,ea->ab', l2[ij], Hvv[ij])
@@ -299,7 +315,8 @@ class cclambda(object):
                     mj = m*self.no + j
                     mi = m*self.no + i 
                     ijm = ij*self.no + m           
-          
+                    jim = ji*self.no + m 
+
                     tmp = Sijmj[ijm] @ l2[mj]
                     tmp = tmp @ Sijmj[ijm].T 
                     r_l2 = r_l2 - tmp * Hoo[i,m]
@@ -308,7 +325,8 @@ class cclambda(object):
                     r_l2 = r_l2 + contract('eb,ea->ab', tmp, 2.0 * Hovvo_mj[ijm] - Hovov_mj[ijm])               
                      
                     tmp = Sijmi[ijm] @ l2[mi] 
-                    r_l2 = r_l2 - contract('be,ea->ab', tmp, Hovov_mi[ijm])  
+                    #trying out Hovov_mj[jim] instead
+                    r_l2 = r_l2 - contract('be,ea->ab', tmp, Hovov_mj[jim])  
                     
                     tmp = l2[mi] @ Sijmi[ijm].T 
                     r_l2 = r_l2 - contract('eb,ea->ab', tmp, Hovvo_mi[ijm])
@@ -370,6 +388,7 @@ class cclambda(object):
                     r_l2 = r_l2 + contract('eb,ea->ab', tmp, 2.0 * Hovvo_mj[ijm] - Hovov_mj[ijm])
 
                     tmp = Sijmi[ijm] @ l2[mi]
+                    #trying out Hovov_mj[jim] instead
                     r_l2 = r_l2 - contract('be,ea->ab', tmp, Hovov_mi[ijm])
 
                     tmp = l2[mi] @ Sijmi[ijm].T
@@ -398,10 +417,13 @@ class cclambda(object):
                 ji = j*self.no + i
 
                 lr_l2.append(nlr_l2[ij].copy() + nlr_l2[ji].copy().transpose())
-        #self.r2_t.stop()
+   
+        lr2_end = process_time()
+        self.lr2_t += lr2_end - lr2_start
         return lr_l2
 
     def local_pseudoenergy(self, ERIoovv, l2):
+        pseudoenergy_start = process_time()
         contract = self.contract
         ecc = 0
         for i in range(self.no):
@@ -410,6 +432,8 @@ class cclambda(object):
 
                 ecc_ij = contract('ab,ab->',l2[ij],ERIoovv[ij][i,j])
                 ecc = ecc + ecc_ij
+        pseudoenergy_end = process_time()
+        self.pseudoenergy_t += pseudoenergy_end - pseudoenergy_start
         return 0.5 * ecc
 
     def solve_lambda(self, e_conv=1e-7, r_conv=1e-7, maxiter=200, max_diis=8, start_diis=1):

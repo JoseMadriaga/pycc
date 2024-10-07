@@ -29,21 +29,13 @@ psi4.set_options({'basis': 'aug-cc-pvdz',
                   'r_convergence': 1e-12
 })
 mol = psi4.geometry(moldict["(H2)_2"])
-#mol = psi4.geometry("""                                                 
-#        O -1.5167088799 -0.0875022822  0.0744338901
-#        H -0.5688047242  0.0676402012 -0.0936613229
-#        H -1.9654552961  0.5753254158 -0.4692384530
-#        symmetry c1
-#        noreorient
-#        nocom
-#""")
 rhf_e, rhf_wfn = psi4.energy('SCF', return_wfn=True)
 
 e_conv = 1e-12
 r_conv = 1e-12
 
 #local
-lcc = pycc.ccwfn(rhf_wfn,  local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-05, filter=False)
+lcc = pycc.ccwfn(rhf_wfn,  local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-07, filter=False)
 lecc = lcc.lccwfn.solve_lcc(e_conv, r_conv)
 lhbar = pycc.cchbar(lcc)
 lcclambda = pycc.cclambda(lcc, lhbar)
@@ -55,5 +47,17 @@ lresp = pycc.ccresponse(ldensity)
 omega1 = 0.0656
 omega2 = 0.0656
 
-lresp.pert_lquadresp(omega1, omega2, e_conv = 1e-12, r_conv = 1e-12)
+lresp.pert_lquadresp(omega1, omega2, e_conv = 1e-10, r_conv = 1e-10)
 lresp.lhyperpolar()
+
+print('Time table for intermediates')
+print("pertbar = %6.6f" % lresp.pertbar_t)
+print("lX1 = %6.6f" % lresp.lX1_t)
+print("lX2 = %6.6f" % lresp.lX2_t)
+print("lY1 = %6.6f" % lresp.lY1_t)
+print("lY2 = %6.6f" % lresp.lY2_t)
+print("psuedoresponse = %6.6f" % lresp.pseudoresponse_t)
+print("LAX = %6.6f" % lresp.LAX_t)
+print("Fz_t = %6.6f" % lresp.Fz_t)
+print("Bcon_t = %6.6f" % lresp.Bcon_t)
+print("G_t = %6.6f" % lresp.G_t)

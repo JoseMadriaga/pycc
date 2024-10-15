@@ -49,8 +49,12 @@ r_conv = 1e-10
 #conv_hbar = cchbar(conv_cc)
 
 #sim 
+<<<<<<< Updated upstream
 cc_sim = pycc.ccwfn(rhf_wfn, local = 'PNO++', local_mos = 'BOYS', local_cutoff = 1e-07, filter = True)
 print(cc_sim.H.mu[2]) 
+=======
+cc_sim = pycc.ccwfn(rhf_wfn, local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-7, filter = True)
+>>>>>>> Stashed changes
 ecc = cc_sim.solve_cc(e_conv, r_conv)
 hbar_sim = pycc.cchbar(cc_sim)
 

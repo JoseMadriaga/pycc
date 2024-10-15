@@ -8,7 +8,7 @@ if __name__ == "__main__":
 import numpy as np
 import time
 from .utils import helper_diis
-
+from time import process_time
 class ccresponse(object):
     """
     An RHF-CC Response Property Object.
@@ -53,16 +53,29 @@ class ccresponse(object):
         self.hbar = self.cclambda.hbar
         self.contract = self.ccwfn.contract
 
+        #initialize variables for timing each function
+        self.X1_t = 0
+        self.X2_t = 0
+        self.Y1_t = 0
+        self.Y2_t = 0
+        self.pseudoresponse_t = 0
+        self.LAX_t = 0
+        self.Fz_t = 0
+        self.Bcon_t = 0
+        self.G_t = 0
+
         # Cartesian indices
         self.cart = ["X", "Y", "Z"]
 
         # Build dictionary of similarity-transformed property integrals
         self.pertbar = {}
-
+  
+        self.pertbar_t = process_time()
         # Electric-dipole operator (length)
         for axis in range(3):
             key = "MU_" + self.cart[axis]
             self.pertbar[key] = pertbar(self.H.mu[axis], self.ccwfn)
+        self.pertbar_t = process_time() - self.pertbar_t
 
         # Magnetic-dipole operator
         for axis in range(3):
@@ -471,6 +484,7 @@ class ccresponse(object):
         self.LHX1X2 = 0.0
         self.LHX2Y2 = 0.0
 
+        LAX_start = process_time()
         # <0|L1(B)[A_bar, X1(C)]|0> 
         tmp = contract('ia,ic->ac', Y1_B, X1_C)
         self.LAX += contract('ac,ac->',tmp, pertbar_A.Avv)
@@ -619,10 +633,15 @@ class ccresponse(object):
         self.LAX6 += contract('bc,bc->', tmp, pertbar_C.Avv)
 
         self.hyper += self.LAX6
+     
+        LAX_end = process_time()
+        self.LAX_t += LAX_end - LAX_start
 
         self.Fz1 = 0
         self.Fz2 = 0
         self.Fz3 = 0
+
+        Fz_start = process_time()
 
         # <0|L1(0)[[A_bar,X1(B)],X1(C)]|0>
         tmp = contract('ia,ja->ij', X1_B, pertbar_A.Aov)
@@ -707,6 +726,11 @@ class ccresponse(object):
 
         self.hyper += self.Fz1+self.Fz2+self.Fz3
 
+        Fz_end = process_time()
+        self.Fz_t += Fz_end - Fz_start
+
+        G_start = process_time()
+ 
         self.G = 0
         # <L1(0)|[[[H_bar,X1(A)],X1(B)],X1(C)]|0>
         tmp = contract('ia,ijac->jc', X1_A, L[o,o,v,v])
@@ -984,6 +1008,11 @@ class ccresponse(object):
         self.G += contract('ijkl,ijkl->', tmp, tmp2)
 
         self.hyper += self.G
+
+        G_end = process_time()
+        self.G_t += G_end - G_start
+
+        Bcon_start = process_time()
 
         self.Bcon1 = 0
         # <O|L1(A)[[Hbar(0),X1(B),X1(C)]]|0>
@@ -1733,6 +1762,9 @@ class ccresponse(object):
 
         self.hyper += self.Bcon1 + self.Bcon2 + self.Bcon3
 
+        Bcon_end = process_time()
+        self.Bcon_t += Bcon_end - Bcon_start
+
         return self.hyper
 
     def hyperpolar(self):
@@ -1797,7 +1829,7 @@ class ccresponse(object):
         pseudo = self.pseudoresponse(pertbar, X1, X2)
         print(f"Iter {0:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudo.real:.5E}")
 
-        diis = helper_diis(X1, X2, max_diis)
+        #diis = helper_diis(X1, X2, max_diis)
         contract = self.ccwfn.contract
 
         self.X1 = X1
@@ -1836,9 +1868,9 @@ class ccresponse(object):
                 print("\nPerturbed wave function converged in %.3f seconds.\n" % (time.time() - solver_start))
                 return self.X1, self.X2, pseudo
 
-            diis.add_error_vector(self.X1, self.X2)
-            if niter >= start_diis:
-                self.X1, self.X2 = diis.extrapolate(self.X1, self.X2)
+            #diis.add_error_vector(self.X1, self.X2)
+            #if niter >= start_diis:
+            #    self.X1, self.X2 = diis.extrapolate(self.X1, self.X2)
 
     def solve_left(self, pertbar, omega, e_conv=1e-12, r_conv=1e-12, maxiter=200, max_diis=7, start_diis=1):
         '''
@@ -1865,7 +1897,7 @@ class ccresponse(object):
         pseudo = self.pseudoresponse(pertbar, Y1, Y2)
         print(f"Iter {0:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudo.real:.5E}")
         
-        diis = helper_diis(Y1, Y2, max_diis)
+        #diis = helper_diis(Y1, Y2, max_diis)
         contract = self.ccwfn.contract
 
         self.Y1 = Y1
@@ -1908,11 +1940,12 @@ class ccresponse(object):
                 print("\nPerturbed wave function converged in %.3f seconds.\n" % (time.time() - solver_start))
                 return self.Y1, self.Y2 , pseudo
             
-            diis.add_error_vector(self.Y1, self.Y2)
-            if niter >= start_diis:
-                self.Y1, self.Y2 = diis.extrapolate(self.Y1, self.Y2)
+            #diis.add_error_vector(self.Y1, self.Y2)
+            #if niter >= start_diis:
+            #    self.Y1, self.Y2 = diis.extrapolate(self.Y1, self.Y2)
 
     def r_X1(self, pertbar, omega):
+        X1_start = process_time()
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
@@ -1929,9 +1962,12 @@ class ccresponse(object):
         r_X1 += contract('imef,amef->ia', X2, (2.0*hbar.Hvovv - hbar.Hvovv.swapaxes(2,3)))
         r_X1 -= contract('mnae,mnie->ia', X2, (2.0*hbar.Hooov - hbar.Hooov.swapaxes(0,1)))
 
+        X1_end = process_time()
+        self.X1_t += X1_end - X1_start
         return r_X1
 
     def r_X2(self, pertbar, omega):
+        X2_start = process_time()
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
@@ -1963,9 +1999,12 @@ class ccresponse(object):
 
         r_X2 = r_X2 + r_X2.swapaxes(0,1).swapaxes(2,3)
 
+        X2_end = process_time()
+        self.X2_t += X2_end - X2_start
         return r_X2
 
     def in_Y1(self, pertbar, X1, X2):
+        Y1_start = process_time()
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
@@ -2084,9 +2123,12 @@ class ccresponse(object):
         tmp  += contract('mioe,mnef->ionf', hbar.Hooov, X2)
         r_Y1 += contract('ionf,nofa->ia', tmp, l2) 
 
+        Y1_end = process_time()
+        self.Y1_t += Y1_end - Y1_start
         return r_Y1
  
     def r_Y1(self, pertbar, omega):
+        Y1_start = process_time()
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
@@ -2115,10 +2157,13 @@ class ccresponse(object):
         #can combine the next two to swapaxes type contraction
         r_Y1 -= 2.0 * contract('mina,mn->ia', hbar.Hooov, cclambda.build_Goo(t2, Y2))
         r_Y1 += contract('imna,mn->ia', hbar.Hooov, cclambda.build_Goo(t2, Y2))
-
+     
+        Y1_end = process_time()
+        self.Y1_t += Y1_end - Y1_start
         return r_Y1
    
     def in_Y2(self, pertbar, X1, X2):
+        Y2_start = process_time()
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
@@ -2215,9 +2260,12 @@ class ccresponse(object):
         tmp   = 2.0 * contract('njfb,mnef->jbme', l2, X2)
         r_Y2 += contract('imae,jbme->ijab', L[o,o,v,v], tmp)
 
+        Y2_end = process_time()
+        self.Y2_t += Y2_end - Y2_start
         return r_Y2
 
     def r_Y2(self, pertbar, omega):
+        Y2_start = process_time()
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
@@ -2253,14 +2301,18 @@ class ccresponse(object):
         r_Y2 -= contract('mi,mjab->ijab', cclambda.build_Goo(t2, Y2), L[o,o,v,v])
 
         r_Y2 = r_Y2 + r_Y2.swapaxes(0,1).swapaxes(2,3)
+        Y2_end = process_time()
+        self.Y2_t += Y2_end - Y2_start
 
         return r_Y2
 
     def pseudoresponse(self, pertbar, X1, X2):
+        response_start = process_time()
         contract = self.ccwfn.contract
         polar1 = 2.0 * contract('ai,ia->', np.conj(pertbar.Avo), X1)
         polar2 = 2.0 * contract('ijab,ijab->', np.conj(pertbar.Avvoo), (2.0*X2 - X2.swapaxes(2,3)))
-
+        response_end = process_time()
+        self.pseudoresponse_t += response_end - response_start
         return -2.0*(polar1 + polar2) 
         
 class pertbar(object):
@@ -2292,4 +2344,4 @@ class pertbar(object):
         # Note that Avvoo is permutationally symmetric, unlike the implementation in ugacc
         self.Avvoo = contract('ijeb,ae->ijab', t2, self.Avv)
         self.Avvoo -= contract('mjab,mi->ijab', t2, self.Aoo)
-        self.Avvoo = 0.5*(self.Avvoo + self.Avvoo.swapaxes(0,1).swapaxes(2,3))
+        self.Avvoo = 0.5*(self.Avvoo + self.Avvoo.swapaxes(0,1).swapaxes(2,3)) 

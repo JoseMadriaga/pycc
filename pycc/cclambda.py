@@ -111,7 +111,7 @@ class cclambda(object):
 
         print("\nLCC Iter %3d: LCC PseudoE = %.15f  dE = % .5E" % (0, lecc, -lecc))
 
-        diis = helper_diis(l1, l2, max_diis, self.ccwfn.precision)
+        #diis = helper_diis(l1, l2, max_diis, self.ccwfn.precision)
  
         contract = self.contract
 
@@ -268,9 +268,9 @@ class cclambda(object):
                     print("\nLambda-CC has converged in %.3f seconds.\n" % (time.time() - lambda_tstart))
                     return lecc
 
-            diis.add_error_vector(self.l1, self.l2)
-            if niter >= start_diis:
-                self.l1, self.l2 = diis.extrapolate(self.l1, self.l2)
+            #diis.add_error_vector(self.l1, self.l2)
+            #if niter >= start_diis:
+            #    self.l1, self.l2 = diis.extrapolate(self.l1, self.l2)
 
         if isinstance(r1, torch.Tensor):
             del Goo, Gvv, Hoo, Hvv, Hov, Hovvo, Hovov, Hvvvo, Hovoo, Hvovv, Hooov

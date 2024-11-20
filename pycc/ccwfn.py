@@ -97,7 +97,7 @@ class ccwfn(object):
         self.local_cutoff = kwargs.pop('local_cutoff', 1e-5)
         self.ed_omega = kwargs.pop('omega', 0) 
 
-        valid_local_MOs = ['PIPEK_MEZEY', 'BOYS']
+        valid_local_MOs = [None, 'PIPEK_MEZEY', 'BOYS']
         local_MOs = kwargs.pop('local_mos', 'PIPEK_MEZEY')
         if local_MOs not in valid_local_MOs:
             raise Exception("%s is not an allowed MO localization method." % (local_MOs))
@@ -141,7 +141,7 @@ class ccwfn(object):
         self.C = C
 
         # Localize occupied MOs if requested
-        if (local is not None):
+        if (self.local_MOs is not None):
             C_occ = self.ref.Ca_subset("AO", "ACTIVE_OCC")
             LMOS = psi4.core.Localizer.build(self.local_MOs, self.ref.basisset(), C_occ)
             LMOS.localize()

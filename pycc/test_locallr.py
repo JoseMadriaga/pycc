@@ -21,14 +21,14 @@ from data.molecules import *
 psi4.core.clean
 psi4.set_memory('2 GiB')
 psi4.core.set_output_file('output.dat', True)
-psi4.set_options({'basis': 'aug-cc-pvdz',
+psi4.set_options({'basis': 'STO-3G',
                   'scf_type': 'pk',
                   'freeze_core': 'true',
                   'e_convergence': 1e-12,
                   'd_convergence': 1e-12,
                   'r_convergence': 1e-12
 })
-mol = psi4.geometry(moldict["(H2)_2"])
+mol = psi4.geometry(moldict["H2"])
 #mol = psi4.geometry("""                                                 
 #        O -1.5167088799 -0.0875022822  0.0744338901
 #        H -0.5688047242  0.0676402012 -0.0936613229
@@ -49,7 +49,7 @@ r_conv = 1e-12
 #conv_hbar = cchbar(conv_cc)
 
 #sim 
-cc_sim = pycc.ccwfn(rhf_wfn, local = 'PNO', local_mos = 'BOYS', local_cutoff = 1e-07, filter = True)
+cc_sim = pycc.ccwfn(rhf_wfn, local = 'PNO++', local_mos = 'BOYS', local_cutoff = 1e-05, filter = True)
 print(cc_sim.H.mu[2]) 
 ecc = cc_sim.solve_cc(e_conv, r_conv)
 hbar_sim = pycc.cchbar(cc_sim)
@@ -83,10 +83,10 @@ lecc = cclambda_sim.solve_lambda(e_conv, r_conv)
 density = pycc.ccdensity(cc_sim, cclambda_sim)
 resp = pycc.ccresponse(density)
 
-omega1 = 0.0656
-omega2 = 0.0656
+omega1 = 0.0428
+omega2 = 0.0428
 
-resp.pert_quadresp(omega1, omega2, e_conv=1e-8, r_conv=1e-8 )
+resp.pert_quadresp(omega1, omega2, e_conv=1e-12, r_conv=1e-12 )
 resp.hyperpolar()
 
 #local

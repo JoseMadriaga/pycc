@@ -495,6 +495,11 @@ class Local(object):
                 
         denom_ijab = Hbar_ii.reshape(-1, 1, 1, 1) + Hbar_ii.reshape(-1, 1, 1) - Hbar_aa.reshape(-1, 1) - Hbar_aa
 
+        #fock denominator
+        #eps_occ = np.diag(self.H.F)[o]
+        #eps_vir = np.diag(self.H.F)[v]
+        #denom_ijab = eps_occ.reshape(-1,1,1,1) + eps_occ.reshape(-1,1,1) - eps_vir.reshape(-1,1) - eps_vir
+
         #going to ignore the omega for a moment such that it is a static case
         #denom_ijab += omega
 

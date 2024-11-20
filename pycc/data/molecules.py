@@ -83,6 +83,13 @@ symmetry c1
 ## Number of water molecules
 ## 2
 
+h2o_1 = """
+O -1.5167088799 -0.0875022822  0.0744338901
+H -0.5688047242  0.0676402012 -0.0936613229
+H -1.9654552961  0.5753254158 -0.4692384530
+symmetry c1
+"""
+
 h2o_2 = """
 O -1.5167088799 -0.0875022822  0.0744338901
 H -0.5688047242  0.0676402012 -0.0936613229
@@ -449,6 +456,7 @@ moldict["H2O_Teach"] = h2o_tutorial
 moldict["H2O"] = h2o
 moldict["H2O_D"] = h2o_dalton
 moldict["H2O2"] = h2o2
+moldict["(H2O)_1"] = h2o_1
 moldict["(H2O)_2"] = h2o_2
 moldict["(H2O)_3"] = h2o_3
 moldict["(H2O)_4"] = h2o_4
